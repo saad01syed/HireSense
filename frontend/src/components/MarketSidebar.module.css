@@ -1,0 +1,91 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cardTitle {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.statRow:last-child { margin-bottom: 0; }
+
+.statLabel { font-size: 0.82rem; color: var(--text-secondary); }
+.statVal   { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
+.companyRoles { font-size: 0.8rem; color: var(--text-muted); }
+
+.skillTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skillTag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.hot     { background: #FEF3C7; color: #B45309; }
+.rising  { background: #DCFCE7; color: #15803D; }
+.normal  { background: var(--accent-light); color: var(--accent); }
+
+.barRow { margin-bottom: 10px; }
+.barRow:last-child { margin-bottom: 0; }
+
+.barLabelRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.barName { font-size: 0.78rem; color: var(--text-secondary); }
+.barPct  { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+
+.barTrack {
+  background: var(--surface2);
+  border-radius: 100px;
+  height: 5px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 100px;
+  background: var(--accent);
+  transition: width 0.6s ease;
+}
+
+.emptyState {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 0;
+}

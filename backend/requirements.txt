@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+python-dotenv
+apscheduler
+requests
+beautifulsoup4
+# AI provider SDK — TBD (openai / anthropic)
+python-multipart

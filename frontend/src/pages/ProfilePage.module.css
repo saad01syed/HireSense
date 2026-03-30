@@ -1,0 +1,358 @@
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* LEFT — Auth */
+.authCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.authCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.authTitle {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.authSub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.field {
+  margin-bottom: 10px;
+}
+
+.label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.input {
+  width: 100%;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--surface);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+/* MIDDLE — Jobs */
+.jobsCol {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.jobSection {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.sectionTitle {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+.jobScroll {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.jobRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.jobRow:hover {
+  background: var(--accent-light);
+}
+
+.jobLogo {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.jobInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.jobTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jobMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.jobMeta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.jobRight {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.jobSalary {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.matchBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--green-light);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+
+.appliedBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+
+/* RIGHT — Resume */
+.resumeCol {}
+
+.resumeCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.resumeFile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--surface2);
+  border-radius: var(--radius);
+}
+
+.resumeFileBadge {
+  width: 34px;
+  height: 34px;
+  background: var(--accent-light);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.resumeFileName {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.resumeFileMeta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.activeTag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--green);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.resumeSubTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.skillItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.skillName {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.skillTrack {
+  flex: 1;
+  height: 5px;
+  background: var(--surface2);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.skillFill {
+  height: 100%;
+  border-radius: 100px;
+}
+
+.skillPct {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 30px;
+  text-align: right;
+}
+
+.scoreWrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.scoreRing {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: conic-gradient(var(--green) 0% 82%, var(--border) 82% 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.scoreRing::before {
+  content: '';
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  background: var(--surface);
+  border-radius: 50%;
+}
+
+.scoreNum {
+  position: relative;
+  z-index: 1;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--green);
+}
+
+.scoreLabel {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.scoreSub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr 1fr;
+  }
+  .resumeCol {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.emptyState {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 24px;
+  text-align: center;
+}
