@@ -10,7 +10,11 @@
 
 # TODO:
 Kris: account creation, saved and applied jobs
+
 Anas: resume upload & parsing
+
 Saad: MySQL database and web crawler
+
 Yohannis: Ai interview
+
 Kaelin: Job Search & Filtering
