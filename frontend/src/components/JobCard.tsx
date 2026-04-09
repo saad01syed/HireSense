@@ -10,58 +10,69 @@ interface Props {
 export default function JobCard({ job }: Props) {
   const navigate = useNavigate()
 
-  const hybridColor =
+  const hybridTone =
     job.hybrid === 'Remote'
-      ? 'var(--green)'
+      ? styles.remote
       : job.hybrid === 'Hybrid'
-      ? 'var(--accent)'
-      : 'var(--text-secondary)'
+      ? styles.hybrid
+      : styles.onsite
+
+  const badgeText = job.badge ? job.badge.toUpperCase() : null
 
   return (
-    <div className={styles.card} onClick={() => navigate(`/jobs/${job.id}`)}>
-      <div className={styles.logo}>{job.logo}</div>
+    <article className={styles.card} onClick={() => navigate(`/jobs/${job.id}`)}>
+      <div className={styles.logoWrap}>
+        <div className={styles.logo}>{job.logo || job.company.charAt(0)}</div>
+      </div>
 
       <div className={styles.main}>
-        <div className={styles.titleRow}>
-          <span className={styles.title}>{job.title}</span>
-          {job.badge && (
-            <span className={`${styles.badge} ${styles[job.badge]}`}>
-              {job.badge}
-            </span>
-          )}
+        <div className={styles.topRow}>
+          <div className={styles.titleBlock}>
+            <div className={styles.titleRow}>
+              <h3 className={styles.title}>{job.title}</h3>
+              {badgeText && <span className={styles.badge}>{badgeText}</span>}
+            </div>
+
+            <div className={styles.meta}>
+              <span className={styles.metaItem}>
+                <IconBriefcase /> {job.company}
+              </span>
+              <span className={styles.metaItem}>
+                <IconMap /> {job.location}
+              </span>
+              <span className={styles.metaItem}>
+                <IconClock /> {job.posted}
+              </span>
+              <span className={`${styles.metaPill} ${hybridTone}`}>{job.hybrid}</span>
+            </div>
+          </div>
+
+          <div className={styles.right}>
+            <div className={styles.salary}>{job.salary}</div>
+            <div className={styles.type}>{job.type}</div>
+          </div>
         </div>
 
-        <div className={styles.meta}>
-          <span className={styles.metaItem}>
-            <IconBriefcase /> {job.company}
-          </span>
-          <span className={styles.metaItem}>
-            <IconMap /> {job.location}
-          </span>
-          <span className={styles.metaItem}>
-            <IconClock /> {job.posted}
-          </span>
-          <span className={styles.metaItem} style={{ color: hybridColor }}>
-            {job.hybrid}
-          </span>
-        </div>
+        {typeof job.description === 'string' && job.description && (
+          <p className={styles.description}>{job.description}</p>
+        )}
 
-        <div className={styles.tags}>
-          {job.tags.map((tag) => (
-            <span key={tag} className={styles.tag}>
-              {tag}
-            </span>
-          ))}
+        <div className={styles.bottomRow}>
+          <div className={styles.tags}>
+            {job.tags.map((tag) => (
+              <span key={tag} className={styles.tag}>
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <div className={styles.matchWrap}>
+            <div className={styles.matchBadge}>
+              <IconCheck /> {job.match}% match
+            </div>
+          </div>
         </div>
       </div>
-
-      <div className={styles.right}>
-        <div className={styles.salary}>{job.salary}</div>
-        <div className={styles.type}>{job.type}</div>
-        <div className={styles.matchBadge}>
-          <IconCheck /> {job.match}% match
-        </div>
-      </div>
-    </div>
+    </article>
   )
 }
