@@ -1,4 +1,16 @@
-# database/connection.py
-# TODO: Set up SQLAlchemy engine using MySQL + credentials from .env
-# TODO: Create SessionLocal factory
-# TODO: Expose get_db() dependency for FastAPI routes
+"""
+connection.py handles database connection.
+"""
+
+# TODO: MAKE A CREDENTIALS FILE 
+
+import mysql.connector
+
+def get_connection():
+    return mysql.connector.connect(
+        host="hiresense-hiresense.d.aivencloud.com",
+        user="avnadmin",
+        password="AVNS_YC_i98cQxKbtFFuGXUD",
+        database="defaultdb",
+        port=12619
+    )
