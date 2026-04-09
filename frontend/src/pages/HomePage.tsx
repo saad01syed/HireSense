@@ -4,15 +4,15 @@ import MarketSidebar from '../components/MarketSidebar'
 import FilterBar, { buildEmptyFilters, type FilterState } from '../components/FilterBar'
 import { IconSearch } from '../components/Icons'
 import styles from './HomePage.module.css'
+import { JOBS } from '../data/mockData'  // ← ADD THIS LINE
 
-// TODO: Replace with API call — import { fetchJobs } from '../api/jobs'
 
 export default function HomePage() {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<FilterState>(buildEmptyFilters())
 
   // TODO: Replace with useEffect fetching from GET /jobs passing filters + query as params
-  const jobs: any[] = []
+  const jobs: any[] = JOBS
 
   const filteredJobs = jobs.filter((job) => {
     const q = query.toLowerCase()

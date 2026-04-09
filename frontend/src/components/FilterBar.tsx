@@ -6,9 +6,10 @@ export const FILTER_DEFINITIONS = [
     id: 'city',
     label: 'City',
     options: [
-      'Dallas','Plano','Irving','Frisco','Richardson','Allen','McKinney',
-      'Garland','Carrollton','Lewisville','Arlington','Fort Worth',
-      'Southlake','Grapevine','Addison',
+      'Dallas', 'Plano', 'Irving', 'Fort Worth', 'Richardson', 'Addison', 
+  'Frisco', 'Arlington', 'Carrollton', 'Southlake', 'Lewisville', 
+  'Garland', 'McKinney', 'Allen', 'Coppell', 'Denton', 'Grapevine', 
+  'Grand Prairie', 'Flower Mound', 'Mesquite', 'Bedford', 'Rockwall'
     ],
   },
   {
