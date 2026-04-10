@@ -8,5 +8,3 @@ requests
 beautifulsoup4
 # AI provider SDK — TBD (openai / anthropic)
 python-multipart
-pdfplumber
-python-docx
