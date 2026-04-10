@@ -1,2 +1,14 @@
 __pycache__/
 *.pyc
+
+# Local env files
+.env
+backend/.env
+frontend/.env
+
+# Python virtual envs
+.venv/
+venv/
+
+# Frontend cache
+frontend/node_modules/.vite/
