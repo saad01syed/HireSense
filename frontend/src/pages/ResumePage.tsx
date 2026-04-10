@@ -1,10 +1,15 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IconUpload, IconCheck, IconX, IconAlert } from '../components/Icons'
 import {
   uploadResume,
   type ResumeUploadResponse,
   type StructuredResumeEntry,
 } from '../api/resume'
+import {
+  clearResumeAnalysis,
+  getResumeAnalysis,
+  saveResumeAnalysis,
+} from '../utils/resumeStorage'
 import styles from './ResumePage.module.css'
 
 function StructuredEntrySection({
@@ -94,6 +99,17 @@ export default function ResumePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  useEffect(() => {
+    const savedResume = getResumeAnalysis()
+
+    if (savedResume) {
+      setResumeResult(savedResume)
+      setSelectedFileName(savedResume.filename || 'Previously uploaded resume')
+      setUploadedAt('saved locally')
+      setSuccessMessage('Loaded your most recent uploaded resume.')
+    }
+  }, [])
+
   const isAllowedFile = (file: File) => {
     const fileName = file.name.toLowerCase()
     return fileName.endsWith('.pdf') || fileName.endsWith('.docx')
@@ -150,6 +166,7 @@ export default function ResumePage() {
     setSuccessMessage('')
     setSelectedFileName('')
     setUploadedAt('')
+    clearResumeAnalysis()
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -172,10 +189,13 @@ export default function ResumePage() {
 
       const result = await uploadResume(file)
       setResumeResult(result)
+      saveResumeAnalysis(result)
       setUploadedAt(formatTime())
       setSuccessMessage('Resume uploaded and analyzed successfully.')
     } catch (err) {
       setResumeResult(null)
+      clearResumeAnalysis()
+
       if (err instanceof Error) {
         setError(err.message)
       } else {

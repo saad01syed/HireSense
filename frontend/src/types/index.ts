@@ -7,11 +7,20 @@ export interface Job {
   salary: string
   tags: string[]
   posted: string
-  badge: 'new' | 'hot' | null
+  badge: string | null
   match: number
   logo: string
   hybrid: 'Remote' | 'Hybrid' | 'On-site'
-  description?: JobDescription
+  description?: string | JobDescription
+  experienceLevel?: string
+  salaryRange?: string
+  dateRange?: string
+  matchDetails?: {
+    matchScore: number
+    matchedSkills: string[]
+    missingSkills: string[]
+    recommendation: string
+  }
 }
 
 export interface JobDescription {
