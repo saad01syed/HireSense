@@ -3,6 +3,21 @@ import { IconBriefcase, IconMap } from '../components/Icons'
 
 // TODO: Replace with API calls — auth, saved/applied jobs from src/api/jobs
 
+// Status badge helper
+const statusLabel: Record<string, string> = {
+  applied:      "Applied",
+  interviewing: "Interview",
+  offered:      "Offered",
+  rejected:     "Rejected",
+};
+
+const statusStyle: Record<string, React.CSSProperties> = {
+  applied:      { background: "#f0f4ff", color: "#3b5bdb" },
+  interviewing: { background: "#e6f9f0", color: "#2f9e44" },
+  offered:      { background: "#fff9db", color: "#e67700" },
+  rejected:     { background: "#fff0f0", color: "#e03131" },
+};
+
 export default function ProfilePage() {
   // TODO: savedJobs — fetch from GET /jobs/saved (auth required)
   // TODO: appliedJobs — fetch from GET /jobs/applied (auth required)
