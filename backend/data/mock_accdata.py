@@ -1,0 +1,71 @@
+export const MOCK_USER_ID = 1;
+
+export const mockSavedJobs = [
+  {
+    id: 1,
+    job_id: 42,
+    title: "Software Engineer Intern",
+    company: "Ericsson",
+    location: "Dallas, TX",
+    salary: "$32/hr",
+    tags: [],
+    logo: "🔗",
+  },
+  {
+    id: 2,
+    job_id: 78,
+    title: "Data Analyst Intern",
+    company: "Amazon",
+    location: "Austin, TX",
+    salary: "$28/hr",
+    tags: ["Hybrid", "Internship"],
+    logo: "a",
+  },
+];
+
+export const mockAppliedJobs = [
+  {
+    id: 1,
+    job_id: 14,
+    title: "Software Engineer Intern",
+    company: "Ericsson",
+    location: "Dallas, TX",
+    salary: "$32/hr",
+    tags: [],
+    status: "applied",
+    logo: "🔗",
+  },
+  {
+    id: 2,
+    job_id: 27,
+    title: "Data Analyst Intern",
+    company: "Amazon",
+    location: "Austin, TX",
+    salary: "$28/hr",
+    tags: ["Hybrid", "Internship"],
+    status: "interviewing",
+    logo: "a",
+  },
+  {
+    id: 3,
+    job_id: 55,
+    title: "QA Automation Intern",
+    company: "Dell",
+    location: "Round Rock, TX",
+    salary: "$25/hr",
+    tags: [],
+    status: "applied",
+    logo: "💻",
+  },
+  {
+    id: 4,
+    job_id: 63,
+    title: "Backend Engineer Intern",
+    company: "Google",
+    location: "Dallas, TX",
+    salary: "$40/hr",
+    tags: ["Hybrid", "Internship"],
+    status: "rejected",
+    logo: "G",
+  },
+];
