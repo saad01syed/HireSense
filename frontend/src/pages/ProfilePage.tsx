@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import styles from './ProfilePage.module.css'
 import { IconBriefcase, IconMap } from '../components/Icons'
-import { mockSavedJobs, mockAppliedJobs } from '../data/mockData'
+import { mockSavedJobs, mockAppliedJobs } from '../../../backend/data/mock_accdata.py'
 import { SavedJob, AppliedJob } from '../types'
 
 // TODO: Replace with API calls — auth, saved/applied jobs from src/api/jobs
@@ -96,40 +96,38 @@ export default function ProfilePage() {
 
         {/* RIGHT — Saved & Applied Jobs */}
         <main className={styles.jobsCol}>
+
           <section className={styles.jobSection}>
             <h2 className={styles.sectionTitle}>Saved Jobs</h2>
             <div className={styles.jobScroll}>
               {savedJobs.length > 0 ? savedJobs.map((job) => (
-                  <div 
-                    key={job.id}
-                    className={styles.jobRow}
-                    onClick={() => navigate(`/jobs/${job.job_id}`)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <div className={styles.jobLogo}>{job.logo}</div>
-                    <div className={styles.jobInfo}>
-                      <div className={styles.jobTitle}>{job.title}</div>
-                      <div className={styles.jobMeta}>
-                        <span><IconBriefcase /> {job.company}</span>
-                        <span><IconMap /> {job.location}</span>
-                      </div>
-                      {job.tags.length > 0 && (
+                <div
+                  key={job.id}
+                  className={styles.jobRow}
+                  onClick={() => navigate(`/jobs/${job.job_id}`)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className={styles.jobLogo}>{job.logo}</div>
+                  <div className={styles.jobInfo}>
+                    <div className={styles.jobTitle}>{job.title}</div>
+                    <div className={styles.jobMeta}>
+                      <span><IconBriefcase /> {job.company}</span>
+                      <span><IconMap /> {job.location}</span>
+                    </div>
+                    {job.tags.length > 0 && (
                       <div className={styles.tagRow}>
                         {job.tags.map(tag => (
                           <span key={tag} className={styles.tag}>{tag}</span>
                         ))}
                       </div>
                     )}
-                    </div>
-                    <div className={styles.jobRight}>
-                      <div className={styles.jobSalary}>{job.salary}</div>
-                      <span className={styles.matchBadge}>{job.match}% match</span>
-                    </div>
                   </div>
-                ))
+                  <div className={styles.jobRight}>
+                    <div className={styles.jobSalary}>{job.salary}</div>
+                  </div>
+                </div>
               )) : (
                 <div className={styles.emptyState}>
-                  {/* TODO: Show spinner while loading */}
                   No saved jobs yet. Save a job from the listings page.
                 </div>
               )}
@@ -140,39 +138,37 @@ export default function ProfilePage() {
             <h2 className={styles.sectionTitle}>Applied Jobs</h2>
             <div className={styles.jobScroll}>
               {appliedJobs.length > 0 ? appliedJobs.map((job) => (
-                  <div 
-                    key={job.id} 
-                    className={styles.jobRow}
-                    onClick={() => navigate(`/jobs/${job.job_id}`)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <div className={styles.jobLogo}>{job.logo}</div>
-                    <div className={styles.jobInfo}>
-                      <div className={styles.jobTitle}>{job.title}</div>
-                      <div className={styles.jobMeta}>
-                        <span><IconBriefcase /> {job.company}</span>
-                        <span><IconMap /> {job.location}</span>
-                      </div>
-                      {job.tags.length > 0 && (
+                <div
+                  key={job.id}
+                  className={styles.jobRow}
+                  onClick={() => navigate(`/jobs/${job.job_id}`)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className={styles.jobLogo}>{job.logo}</div>
+                  <div className={styles.jobInfo}>
+                    <div className={styles.jobTitle}>{job.title}</div>
+                    <div className={styles.jobMeta}>
+                      <span><IconBriefcase /> {job.company}</span>
+                      <span><IconMap /> {job.location}</span>
+                    </div>
+                    {job.tags.length > 0 && (
                       <div className={styles.tagRow}>
                         {job.tags.map(tag => (
                           <span key={tag} className={styles.tag}>{tag}</span>
                         ))}
-                        </div>
-                      )}
                       </div>
-                    <div className={styles.jobRight}>
-                      <div className={styles.jobSalary}>{job.salary}</div>
-                      <span 
-                        className={styles.appliedBadge}
-                        style={statusStyle[job.status]}
-                      >
-                        {statusLabel[job.status]}
-                      </span>
-                      </span>
-                    </div>
+                    )}
                   </div>
-                ))
+                  <div className={styles.jobRight}>
+                    <div className={styles.jobSalary}>{job.salary}</div>
+                    <span
+                      className={styles.statusBadge}
+                      style={statusStyle[job.status]}
+                    >
+                      {statusLabel[job.status]}
+                    </span>
+                  </div>
+                </div>
               )) : (
                 <div className={styles.emptyState}>
                   No applied jobs yet.
