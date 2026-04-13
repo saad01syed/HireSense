@@ -67,3 +67,21 @@ export interface FilterOption {
   label: string
   value: string
 }
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  joined_at: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+}
