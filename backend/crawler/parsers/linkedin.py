@@ -1,4 +1,5 @@
 import re
+import time
 from datetime import date, timedelta
 from urllib.parse import parse_qs, unquote, urlparse
 
@@ -15,6 +16,13 @@ except ImportError:
 
 
 BASE_URL = "https://www.linkedin.com"
+# Guest `seeMoreJobPostings/search` returns ~10 listing cards per request; the UI
+# shows 50+ by loading more pages with increasing `start` (not one giant HTML).
+SEARCH_RESULTS_PAGE_SIZE = 10
+# Space out paginated search calls; back-to-back requests often get HTTP 429.
+SEARCH_PAGE_DELAY_SEC = 1.75
+SEARCH_429_RETRY_SEC = 8.0
+SEARCH_MAX_RETRIES = 3
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -163,21 +171,69 @@ def _extract_external_redirect(href):
     return None
 
 
+def _apply_anchor_label(anchor):
+    """Human-visible / accessibility label for an apply control (not CSS class soup)."""
+    if not anchor:
+        return ""
+    parts = [
+        anchor.get_text(" ", strip=True) or "",
+        anchor.get("aria-label") or "",
+        anchor.get("title") or "",
+    ]
+    return " ".join(parts).lower()
+
+
+def _is_easy_apply_anchor(anchor):
+    """LinkedIn on-site application (Easy Apply / Quick Apply) — keep LinkedIn URL."""
+    if not anchor:
+        return False
+    label = _apply_anchor_label(anchor)
+    if "easy apply" in label or "easy-apply" in label or "easyapply" in label.replace(" ", ""):
+        return True
+    if "quick apply" in label or "quick-apply" in label:
+        return True
+    return False
+
+
+def _is_plain_apply_anchor(anchor):
+    """External / company apply: button says Apply but not Easy Apply."""
+    if not anchor:
+        return False
+    if _is_easy_apply_anchor(anchor):
+        return False
+    label = _apply_anchor_label(anchor)
+    if not label:
+        return False
+    return bool(re.search(r"\bapply\b", label))
+
+
 def _extract_salary_from_description(description):
     if not description:
         return None
 
     text = _normalize_linkedin_text(description)
 
-    range_pattern = re.search(
-        r"([$€£]\s?\d[\d,]*(?:\.\d+)?\s?(?:k|K)?\s?(?:-|to)\s?[$€£]?\s?\d[\d,]*(?:\.\d+)?\s?(?:k|K)?(?:\s*/\s*(?:year|yr|month|mo|week|wk|day|hour|hr))?)",
+    # "between $21.19 and $23.37 per hour" — include trailing words so period detection sees "per hour"
+    between_range = re.search(
+        r"between\s*\$?\s*\d[\d,]*(?:\.\d+)?\s+(?:and|-|–|to)\s*\$?\s*\d[\d,]*(?:\.\d+)?[^.\n]{0,120}",
         text,
+        flags=re.IGNORECASE,
+    )
+    if between_range:
+        return between_range.group(0).strip()
+
+    # $X – $Y with hyphen, "to", or "and" (currency optional on the upper bound)
+    range_pattern = re.search(
+        r"([$€£]\s?\d[\d,]*(?:\.\d+)?\s?(?:k|K)?\s?(?:-|–|to|\band\b)\s*[$€£]?\s?\d[\d,]*(?:\.\d+)?\s?(?:k|K)?(?:\s*(?:/|per)\s*(?:year|yr|month|mo|week|wk|day|hour|hr)|(?:\s*/\s*(?:year|yr|month|mo|week|wk|day|hour|hr)))?)",
+        text,
+        flags=re.IGNORECASE,
     )
     if range_pattern:
         return range_pattern.group(1).strip()
 
+    # Single amount: do not match $1 (or $50) when followed by million/billion/trillion (business metrics)
     single_pattern = re.search(
-        r"((?:USD|EUR|GBP)\s?\d[\d,]*(?:\.\d+)?\s?(?:k|K)?(?:\s*/\s*(?:year|yr|month|mo|week|wk|day|hour|hr))?|[$€£]\s?\d[\d,]*(?:\.\d+)?\s?(?:k|K)?(?:\s*/\s*(?:year|yr|month|mo|week|wk|day|hour|hr))?)",
+        r"((?:USD|EUR|GBP)\s?\d[\d,]*(?:\.\d+)?\s?(?:k|K)?(?:\s*/\s*(?:year|yr|month|mo|week|wk|day|hour|hr))?|[$€£]\s?\d[\d,]*(?:\.\d+)?\s?(?:k|K)?(?:\s*/\s*(?:year|yr|month|mo|week|wk|day|hour|hr))?)(?!\s*(?:million|billion|trillion)\b)",
         text,
         flags=re.IGNORECASE,
     )
@@ -201,20 +257,100 @@ def _parse_salary_number(raw_amount):
         return None
 
 
-def _salary_period_multiplier(salary_text):
-    text = salary_text.lower()
-    if any(token in text for token in ("/hour", "per hour", "/hr", " hourly")):
+_SALARY_PERIOD_LOCAL_RADIUS = 120
+
+
+def _normalize_for_salary_substring_match(text):
+    if not text:
+        return ""
+    t = _normalize_linkedin_text(text)
+    for ch in ("\u2013", "\u2014", "\u2212"):
+        t = t.replace(ch, "-")
+    return re.sub(r"\s+", " ", t)
+
+
+def _period_multiplier_from_fragment(fragment):
+    """Infer hourly/daily/weekly/monthly pay from a short fragment (salary line or local window)."""
+    if not fragment:
+        return 1
+    text = fragment.lower()
+    if any(token in text for token in ("/hour", "per hour", "/hr", " hourly", " an hour", "hourly rate")):
         return 2080
     if any(token in text for token in ("/day", "per day", " daily")):
         return 260
     if any(token in text for token in ("/week", "per week", " weekly", "/wk")):
         return 52
-    if any(token in text for token in ("/month", "per month", " monthly", "/mo")):
+    # Do not use bare " monthly" — it matches unrelated phrases like "eligible for monthly bonuses".
+    if "/month" in text or "per month" in text:
+        return 12
+    if re.search(r"(?<![a-z])/mo\b", text):
+        return 12
+    if re.search(r"\b\d[\d,]*(?:\.\d+)?\s+monthly\b", text):
         return 12
     return 1
 
 
-def _normalize_salary_to_annual(salary_text):
+def _salary_period_multiplier(salary_text, context_text=None):
+    """Use the salary snippet first; only scan a small window around it in the full description.
+
+    Matching pay cues against the entire posting mislabels annual ranges when unrelated text
+    contains phrases like "monthly bonuses" (the bare token " monthly" matched inside them).
+    """
+    m = _period_multiplier_from_fragment(salary_text)
+    if m != 1:
+        return m
+    st = (salary_text or "").strip()
+    if not context_text or len(st) < 6:
+        return 1
+
+    ctx = _normalize_for_salary_substring_match(context_text)
+    st_norm = _normalize_for_salary_substring_match(st)
+    idx = ctx.find(st_norm)
+    if idx != -1:
+        span = len(st_norm)
+    else:
+        first_amt = re.search(r"\$[\d,]+(?:\.\d+)?", st_norm)
+        if not first_amt:
+            return 1
+        idx = ctx.find(first_amt.group(0))
+        if idx == -1:
+            return 1
+        span = min(len(st_norm), 120)
+
+    r = _SALARY_PERIOD_LOCAL_RADIUS
+    lo = max(0, idx - r)
+    hi = min(len(ctx), idx + span + r)
+    return _period_multiplier_from_fragment(ctx[lo:hi])
+
+
+def _hourly_rate_pair_hint(salary_text, context_text=None):
+    """If LinkedIn shows a compact hourly band (e.g. 67-71) with no period words, treat as hourly."""
+    if not (salary_text or "").strip():
+        return False
+    if _salary_period_multiplier(salary_text, context_text) != 1:
+        return False
+    combined = ((salary_text or "") + " " + (context_text or "")).lower()
+    amounts = re.findall(r"\d[\d,]*(?:\.\d+)?\s*[kK]?", salary_text)
+    values = [v for v in (_parse_salary_number(a) for a in amounts) if v is not None]
+    if len(values) != 2:
+        return False
+    lo, hi = min(values[0], values[1]), max(values[0], values[1])
+    # Plausible hourly USD (avoids treating $50k-$60k or annual figures as hourly)
+    if hi < lo or lo < 8 or hi > 600:
+        return False
+    has_hour_cue = bool(
+        re.search(
+            r"(?:\b(?:hour|hr)s?\b|/\s*hr\b|per\s+hour|hourly\s+rate|pay\s+rate)",
+            combined,
+        )
+    )
+    if has_hour_cue:
+        return True
+    # Without "hour" in text, only infer hourly for typical wage bands (avoids e.g. 100–120 as thousands)
+    return (hi - lo) <= 120 and hi <= 115
+
+
+def _normalize_salary_to_annual(salary_text, context_text=None):
     if not salary_text:
         return None
 
@@ -223,8 +359,14 @@ def _normalize_salary_to_annual(salary_text):
     if not values:
         return None
 
+    mult = _salary_period_multiplier(salary_text, context_text)
+    if mult == 1 and _hourly_rate_pair_hint(salary_text, context_text):
+        mult = 2080
+
     base_value = values[0] if len(values) == 1 else (values[0] + values[1]) / 2
-    annual_salary = base_value * _salary_period_multiplier(salary_text)
+    annual_salary = base_value * mult
+    if annual_salary < 10000:
+        return None
     return int(round(annual_salary))
 
 def _extract_search_params(start_url):
@@ -281,33 +423,39 @@ def _extract_details_from_posting(job_id, session):
             criteria[header.lower()] = value
 
     external_candidate = None
-    linkedin_candidate = None
+    linkedin_easy_apply_candidate = None
+    linkedin_plain_apply_fallback = None
+
     for apply_anchor in soup.select("a"):
         href = _normalize_href(apply_anchor.get("href"))
         if _is_noise_link(href):
             continue
 
+        if _is_easy_apply_anchor(apply_anchor):
+            if href and not linkedin_easy_apply_candidate:
+                linkedin_easy_apply_candidate = href
+            continue
+
+        if not _is_plain_apply_anchor(apply_anchor):
+            continue
+
         if _is_external_apply_link(href):
             external_candidate = href
             break
-
         redirected_external = _extract_external_redirect(href)
         if redirected_external:
             external_candidate = redirected_external
             break
+        if href and not linkedin_plain_apply_fallback:
+            linkedin_plain_apply_fallback = href
 
-        tracking_name = (apply_anchor.get("data-tracking-control-name") or "").lower()
-        classes = " ".join(apply_anchor.get("class", []))
-        text = (apply_anchor.get_text(" ", strip=True) or "").lower()
-        if (
-            "topcard__link" in classes
-            or "public_jobs_topcard-title" in tracking_name
-            or "apply" in text
-        ):
-            linkedin_candidate = href
-
-    application_link = external_candidate or linkedin_candidate
-    if not application_link:
+    if linkedin_easy_apply_candidate:
+        application_link = linkedin_easy_apply_candidate
+    elif external_candidate:
+        application_link = external_candidate
+    elif linkedin_plain_apply_fallback:
+        application_link = linkedin_plain_apply_fallback
+    else:
         application_link = f"{BASE_URL}/jobs/view/{job_id}/"
 
     description = _normalize_linkedin_text(
@@ -316,9 +464,17 @@ def _extract_details_from_posting(job_id, session):
     salary_text = _safe_text(soup.select_one("span.compensation__salary"))
     if not salary_text:
         salary_text = _extract_salary_from_description(description)
-    salary = _normalize_salary_to_annual(salary_text)
+    salary = _normalize_salary_to_annual(salary_text, description)
     relative_date = _safe_text(soup.select_one("span.posted-time-ago__text"))
-    if not external_candidate and application_link and "linkedin.com" in application_link.lower():
+    selected_link_is_easy_apply = bool(linkedin_easy_apply_candidate) and (
+        application_link == linkedin_easy_apply_candidate
+    )
+    if (
+        not external_candidate
+        and not selected_link_is_easy_apply
+        and application_link
+        and "linkedin.com" in application_link.lower()
+    ):
         external_from_description = _extract_external_url_from_description(description)
         if external_from_description:
             application_link = external_from_description
@@ -342,22 +498,32 @@ def _extract_details_from_posting(job_id, session):
     }
 
 
-def parse_job_linkedin(start_url, max_jobs=25):
+def parse_job_linkedin(start_url, max_jobs=60):
     search_params = _extract_search_params(start_url)
     jobs = []
 
     with requests.Session() as session:
         session.headers.update(HEADERS)
 
-        for start in range(0, max_jobs, 25):
+        start = 0
+        search_url = f"{BASE_URL}/jobs-guest/jobs/api/seeMoreJobPostings/search"
+        while len(jobs) < max_jobs:
+            if start > 0:
+                time.sleep(SEARCH_PAGE_DELAY_SEC)
+
             params = {
                 "keywords": search_params["keywords"],
                 "location": search_params["location"],
                 "start": start,
             }
-            search_url = f"{BASE_URL}/jobs-guest/jobs/api/seeMoreJobPostings/search"
-            search_response = session.get(search_url, params=params, timeout=15)
-            if search_response.status_code != 200:
+            search_response = None
+            for attempt in range(SEARCH_MAX_RETRIES):
+                search_response = session.get(search_url, params=params, timeout=15)
+                if search_response.status_code != 429:
+                    break
+                time.sleep(SEARCH_429_RETRY_SEC * (attempt + 1))
+
+            if not search_response or search_response.status_code != 200:
                 break
 
             job_ids = _extract_job_ids(search_response.text)
@@ -373,5 +539,7 @@ def parse_job_linkedin(start_url, max_jobs=25):
                         return jobs
                 except requests.RequestException:
                     continue
+
+            start += SEARCH_RESULTS_PAGE_SIZE
 
     return jobs

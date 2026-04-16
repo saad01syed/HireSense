@@ -14,9 +14,9 @@ except ImportError:
 
 def _log_db_target():
     try:
-        from backend.database.connection import get_connection
+        from backend.database.queries import get_connection
     except ImportError:
-        from database.connection import get_connection
+        from database.queries import get_connection
 
     conn = get_connection()
     try:
@@ -42,11 +42,6 @@ def run():
         "https://www.linkedin.com/jobs/search/?keywords=full%20stack%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=backend%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=frontend%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=junior%20software%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=entry%20level%20software%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=associate%20software%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=web%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=application%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=data%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=data%20scientist&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=machine%20learning%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
@@ -55,12 +50,17 @@ def run():
         "https://www.linkedin.com/jobs/search/?keywords=site%20reliability%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=qa%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=software%20test%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=mobile%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=ios%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=android%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=senior%20software%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=staff%20software%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=security%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=cybersecurity%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=embedded%20software%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=systems%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=platform%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=blockchain%20developer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=game%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=software%20engineer%20intern&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=software%20developer%20intern&location=Dallas-Fort%20Worth%20Metroplex",
     ]
 
     for i, url in enumerate(LINKEDIN_URLS, start=1):
@@ -84,12 +84,13 @@ def run():
     for idx, job in enumerate(jobs, start=1):
         title = (job.get("job_title") or "")[:60]
         try:
-            insert_job(job)
-            inserted += 1
-            print(f"[crawl] insert {idx}/{len(jobs)} OK: {title!r}", flush=True)
+            if insert_job(job):
+                inserted += 1
+                print(f"[crawl] insert {idx}/{len(jobs)} OK: {title!r}", flush=True)
+            else:
+                print(f"[crawl] insert {idx}/{len(jobs)} skipped: {title!r}", flush=True)
         except Exception as exc:
             print(f"[crawl] insert {idx}/{len(jobs)} FAILED: {title!r} - {exc}", flush=True)
-            raise
 
     print(f"[crawl] done: {inserted}/{len(jobs)} row(s) inserted", flush=True)
 
