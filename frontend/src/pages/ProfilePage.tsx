@@ -32,64 +32,21 @@ export default function ProfilePage() {
     <div className="page">
       <div className={styles.layout}>
 
-        {/* LEFT — Auth */}
+        {/* LEFT — Account */}
         <aside className={styles.authCol}>
           <div className={styles.authCard}>
-            <h2 className={styles.authTitle}>Sign Up</h2>
-            <p className={styles.authSub}>Create your HireSense account.</p>
-            <div className={styles.field}>
-              <label className={styles.label}>Full Name</label>
-              <input className={styles.input} type="text" placeholder="Jane Doe" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Email</label>
-              <input className={styles.input} type="email" placeholder="jane@email.com" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Password</label>
-              <input className={styles.input} type="password" placeholder="••••••••" />
-            </div>
-            {/* TODO: onClick → POST /auth/signup */}
-            <button className="btn-primary" style={{ width: '100%', padding: '11px', justifyContent: 'center', marginTop: '4px' }}>
-              Create Account
-            </button>
-          </div>
-
-          <div className={styles.authCard}>
-            <h2 className={styles.authTitle}>Log In</h2>
-            <p className={styles.authSub}>Welcome back.</p>
-            <div className={styles.field}>
-              <label className={styles.label}>Email</label>
-              <input className={styles.input} type="email" placeholder="jane@email.com" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Password</label>
-              <input className={styles.input} type="password" placeholder="••••••••" />
-            </div>
-            {/* TODO: onClick → POST /auth/login, store JWT token */}
-            <button className="btn-primary" style={{ width: '100%', padding: '11px', justifyContent: 'center', marginTop: '4px' }}>
-              Log In
-            </button>
-          </div>
-
-          <div className={styles.authCard}>
-            <h2 className={styles.authTitle}>Edit Account</h2>
-            <p className={styles.authSub}>Update your profile details.</p>
-            <div className={styles.field}>
-              <label className={styles.label}>Full Name</label>
-              <input className={styles.input} type="text" placeholder="Jane Doe" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Email</label>
-              <input className={styles.input} type="email" placeholder="jane@email.com" />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>New Password</label>
-              <input className={styles.input} type="password" placeholder="••••••••" />
-            </div>
-            {/* TODO: onClick → PATCH /auth/user (auth required) */}
-            <button className="btn-outline" style={{ width: '100%', padding: '11px', textAlign: 'center', marginTop: '4px' }}>
-              Save Changes
+            <h2 className={styles.authTitle}>Account</h2>
+            <p className={styles.authSub}>Logged in as</p>
+            <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>dev@hiresense.com</p>
+            <button
+              className="btn-outline"
+              style={{ width: '100%', padding: '11px', textAlign: 'center', marginTop: '14px' }}
+              onClick={() => {
+                localStorage.removeItem('mock_auth')
+                window.location.href = '/login'
+              }}
+            >
+              Log Out
             </button>
           </div>
         </aside>
