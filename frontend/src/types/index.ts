@@ -4,7 +4,7 @@ export interface Job {
   company: string
   location: string
   type: string
-  salary: string
+  salary: string | number
   tags: string[]
   posted: string
   badge: string | null
@@ -13,8 +13,9 @@ export interface Job {
   hybrid: 'Remote' | 'Hybrid' | 'On-site'
   description?: string | JobDescription
   experienceLevel?: string
-  salaryRange?: string
+  salaryRange?: string | number
   dateRange?: string
+  applicationLink?: string
   matchDetails?: {
     matchScore: number
     matchedSkills: string[]
