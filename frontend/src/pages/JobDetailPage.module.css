@@ -58,7 +58,7 @@
   margin: 0;
   font-size: 36px;
   line-height: 1.05;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .jobMeta {
@@ -84,7 +84,7 @@
 .sectionTitle {
   margin: 0 0 14px 0;
   font-size: 24px;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .description {
@@ -92,6 +92,39 @@
   color: var(--text-secondary);
   font-size: 16px;
   line-height: 1.7;
+}
+
+.descriptionLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.descriptionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.descriptionHeading {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.descriptionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.descriptionParagraph {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.8;
 }
 
 .tagsWrap {
@@ -115,7 +148,7 @@
 .skillTag {
   background: #f5f7fb;
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .matchTagGood {
@@ -153,7 +186,7 @@
 }
 
 .detailValue {
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 16px;
   font-weight: 600;
 }
@@ -197,7 +230,7 @@
 }
 
 .matchSummary {
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 15px;
   line-height: 1.6;
   margin-bottom: 18px;
@@ -210,7 +243,7 @@
 .matchSectionTitle {
   font-size: 14px;
   font-weight: 800;
-  color: var(--text);
+  color: var(--text-primary);
   margin-bottom: 10px;
 }
 
@@ -223,7 +256,7 @@
 .interviewTitle {
   margin: 0 0 12px 0;
   font-size: 22px;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .interviewEmpty {

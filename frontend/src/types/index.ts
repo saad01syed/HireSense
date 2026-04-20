@@ -4,7 +4,7 @@ export interface Job {
   company: string
   location: string
   type: string
-  salary: string
+  salary: string | number
   tags: string[]
   posted: string
   badge: string | null
@@ -13,8 +13,9 @@ export interface Job {
   hybrid: 'Remote' | 'Hybrid' | 'On-site'
   description?: string | JobDescription
   experienceLevel?: string
-  salaryRange?: string
+  salaryRange?: string | number
   dateRange?: string
+  applicationLink?: string
   matchDetails?: {
     matchScore: number
     matchedSkills: string[]
@@ -69,19 +70,19 @@ export interface FilterOption {
 }
 
 export interface User {
-  id: number;
-  username: string;
-  email: string;
-  joined_at: string;
+  id: number
+  username: string
+  email: string
+  joined_at: string
 }
 
 export interface AuthResponse {
-  token: string;
-  user: User;
+  token: string
+  user: User
 }
 
 export interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
+  user: User | null
+  token: string | null
+  isAuthenticated: boolean
 }

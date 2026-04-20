@@ -1,22 +1,17 @@
 try:
-    # Works when running from project root (package-style imports)
-    from backend.crawler.parsers.linkedin import parse_job_linkedin
-    from backend.database.queries import insert_job
+    from crawler.parsers.linkedin import parse_job_linkedin
+    from database.queries import insert_job
 except ImportError:
-    # Works when running this file directly from backend/crawler
     import os
     import sys
 
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from parsers.linkedin import parse_job_linkedin
+    from crawler.parsers.linkedin import parse_job_linkedin
     from database.queries import insert_job
 
 
 def _log_db_target():
-    try:
-        from backend.database.queries import get_connection
-    except ImportError:
-        from database.queries import get_connection
+    from database.connection import get_connection
 
     conn = get_connection()
     try:
@@ -35,13 +30,12 @@ def run():
 
     jobs = []
 
-    # Crawl linkedin
-    LINKEDIN_URLS = [
+    linkedin_urls = [
         "https://www.linkedin.com/jobs/search/?keywords=software%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=software%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=full%20stack%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=backend%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=frontend%20developer&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=backend%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=data%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=data%20scientist&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=machine%20learning%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
@@ -61,38 +55,47 @@ def run():
         "https://www.linkedin.com/jobs/search/?keywords=blockchain%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=game%20developer&location=Dallas-Fort%20Worth%20Metroplex",
         "https://www.linkedin.com/jobs/search/?keywords=software%20engineer%20intern&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=software%20developer%20intern&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=data%20analyst%20intern&location=Dallas-Fort%20Worth%20Metroplex",
+        "https://www.linkedin.com/jobs/search/?keywords=machine%20learning%20intern&location=Dallas-Fort%20Worth%20Metroplex",
     ]
 
-    for i, url in enumerate(LINKEDIN_URLS, start=1):
-        print(f"[crawl] fetching URL {i}/{len(LINKEDIN_URLS)}: {url}", flush=True)
-        new_jobs = parse_job_linkedin(url)
-        print(f"[crawl]   -> parsed {len(new_jobs)} job(s)", flush=True)
-        for job in new_jobs:
-            jobs.append(job)
+    for i, url in enumerate(linkedin_urls, start=1):
+        print(f"[crawl] fetching URL {i}/{len(linkedin_urls)}: {url}", flush=True)
+        try:
+            new_jobs = parse_job_linkedin(url)
+            print(f"[crawl]   -> parsed {len(new_jobs)} job(s)", flush=True)
+            jobs.extend(new_jobs)
+        except Exception as exc:
+            print(f"[crawl]   -> parser failed for URL {i}: {exc}", flush=True)
 
-    print(f"[crawl] total jobs collected: {len(jobs)}", flush=True)
+    print(f"[crawl] total jobs collected before insert: {len(jobs)}", flush=True)
 
     if not jobs:
-        print(
-            "[crawl] WARNING: no jobs to insert - check network, LinkedIn response, or parser.",
-            flush=True,
-        )
+        print("[crawl] no jobs found", flush=True)
         return
 
-    # Insert all the jobs into MySQL database
     inserted = 0
+    failed = 0
+
     for idx, job in enumerate(jobs, start=1):
-        title = (job.get("job_title") or "")[:60]
+        title = (job.get("job_title") or "Unknown Title")[:70]
         try:
-            if insert_job(job):
+            result = insert_job(job)
+            if result is False:
+                print(f"[crawl] insert {idx}/{len(jobs)} skipped: {title!r}", flush=True)
+            else:
                 inserted += 1
                 print(f"[crawl] insert {idx}/{len(jobs)} OK: {title!r}", flush=True)
-            else:
-                print(f"[crawl] insert {idx}/{len(jobs)} skipped: {title!r}", flush=True)
         except Exception as exc:
+            failed += 1
             print(f"[crawl] insert {idx}/{len(jobs)} FAILED: {title!r} - {exc}", flush=True)
+            continue
 
-    print(f"[crawl] done: {inserted}/{len(jobs)} row(s) inserted", flush=True)
+    print(
+        f"[crawl] done: processed={len(jobs)} inserted_or_skipped={inserted} failed={failed}",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

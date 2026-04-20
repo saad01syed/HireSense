@@ -1,105 +1,188 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { fetchJob } from '../api/jobs'
+import type { Job } from '../types'
 import { getResumeAnalysis } from '../utils/resumeStorage'
 import { matchResumeToJob } from '../utils/jobMatcher'
+import { formatSalary } from '../utils/formatSalary'
 import styles from './JobDetailPage.module.css'
 
-type DetailJob = {
-  id: number
-  title: string
-  company: string
-  location: string
-  tags: string[]
-  hybrid: string
-  experienceLevel: string
-  salaryRange: string
-  type: string
-  dateRange: string
-  posted: string
-  badge: string
-  logo: string
-  description: string
+type DescriptionSection = {
+  heading?: string
+  items: string[]
 }
 
-const jobs: DetailJob[] = [
-  {
-    id: 1,
-    title: 'Software Engineer Intern',
-    company: 'Google',
-    location: 'Austin, TX',
-    tags: ['Python', 'React', 'SQL', 'APIs', 'Git'],
-    hybrid: 'Hybrid',
-    experienceLevel: 'Internship',
-    salaryRange: '$25-$35/hr',
-    type: 'Internship',
-    dateRange: 'Last 7 Days',
-    posted: '2 days ago',
-    badge: 'Top Match',
-    logo: '',
-    description:
-      'Work on full-stack product features, scalable backend services, and internal tools. Collaborate with engineers, write production-ready code, and contribute to internal platform improvements.',
-  },
-  {
-    id: 2,
-    title: 'Data Analyst Intern',
-    company: 'Microsoft',
-    location: 'Irving, TX',
-    tags: ['SQL', 'Excel', 'Python', 'Tableau', 'Analytics'],
-    hybrid: 'Hybrid',
-    experienceLevel: 'Internship',
-    salaryRange: '$22-$30/hr',
-    type: 'Internship',
-    dateRange: 'Last 7 Days',
-    posted: '1 day ago',
-    badge: 'Trending',
-    logo: '',
-    description:
-      'Analyze business data, build dashboards, and communicate insights to stakeholders. Support reporting, trend analysis, and data-backed decision making.',
-  },
-  {
-    id: 3,
-    title: 'Frontend Engineer Intern',
-    company: 'Amazon',
-    location: 'Dallas, TX',
-    tags: ['React', 'TypeScript', 'CSS', 'JavaScript', 'Frontend'],
-    hybrid: 'On-site',
-    experienceLevel: 'Internship',
-    salaryRange: '$24-$32/hr',
-    type: 'Internship',
-    dateRange: 'Last 14 Days',
-    posted: '4 days ago',
-    badge: 'Popular',
-    logo: '',
-    description:
-      'Build responsive interfaces, improve performance, and collaborate with design and product teams. Focus on scalable UI systems and strong user experience.',
-  },
-  {
-    id: 4,
-    title: 'Machine Learning Intern',
-    company: 'NVIDIA',
-    location: 'Remote',
-    tags: ['Python', 'Machine Learning', 'Pandas', 'APIs', 'Data'],
-    hybrid: 'Remote',
-    experienceLevel: 'Internship',
-    salaryRange: '$28-$38/hr',
-    type: 'Internship',
-    dateRange: 'Last 30 Days',
-    posted: '6 days ago',
-    badge: 'AI Role',
-    logo: '',
-    description:
-      'Support ML experimentation, model pipelines, and applied AI product features. Work with datasets, prototype models, and help productionize ML workflows.',
-  },
-]
+function normalizeDescriptionText(job: Job | null): string {
+  if (!job) {
+    return ''
+  }
+
+  if (typeof job.description === 'string') {
+    return job.description.trim()
+  }
+
+  if (job.description?.about) {
+    return job.description.about.trim()
+  }
+
+  return ''
+}
+
+function cleanDescriptionText(text: string): string {
+  return text
+    .replace(/\r/g, '\n')
+    .replace(/\u2022/g, '\n• ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
+function sentenceSplitToParagraphs(text: string): string[] {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+
+  if (!normalized) {
+    return []
+  }
+
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+(?=[A-Z])/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+
+  if (sentences.length <= 3) {
+    return sentences
+  }
+
+  const paragraphs: string[] = []
+
+  for (let i = 0; i < sentences.length; i += 3) {
+    paragraphs.push(sentences.slice(i, i + 3).join(' '))
+  }
+
+  return paragraphs
+}
+
+function buildDescriptionSections(text: string): DescriptionSection[] {
+  const cleaned = cleanDescriptionText(text)
+
+  if (!cleaned) {
+    return []
+  }
+
+  const rawLines = cleaned
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const headingPattern =
+    /^(about|overview|responsibilities|requirements|qualifications|preferred qualifications|preferred skills|skills|what you'll do|what you will do|benefits|why join|who you are|what we're looking for|what we are looking for)$/i
+
+  const bulletPattern = /^([•\-*]\s+|\d+\.\s+)/
+  const hasStructure = rawLines.some((line) => headingPattern.test(line) || bulletPattern.test(line))
+
+  if (!hasStructure) {
+    return [
+      {
+        heading: 'Overview',
+        items: sentenceSplitToParagraphs(cleaned),
+      },
+    ]
+  }
+
+  const sections: DescriptionSection[] = []
+  let currentSection: DescriptionSection = {
+    heading: 'Overview',
+    items: [],
+  }
+
+  for (const rawLine of rawLines) {
+    const line = rawLine.trim()
+
+    if (headingPattern.test(line)) {
+      if (currentSection.items.length > 0) {
+        sections.push(currentSection)
+      }
+
+      currentSection = {
+        heading: line,
+        items: [],
+      }
+      continue
+    }
+
+    if (bulletPattern.test(line)) {
+      currentSection.items.push(line.replace(bulletPattern, '').trim())
+      continue
+    }
+
+    const splitParagraphs = sentenceSplitToParagraphs(line)
+
+    if (splitParagraphs.length > 0) {
+      currentSection.items.push(...splitParagraphs)
+    }
+  }
+
+  if (currentSection.items.length > 0) {
+    sections.push(currentSection)
+  }
+
+  return sections.length > 0
+    ? sections
+    : [
+        {
+          heading: 'Overview',
+          items: sentenceSplitToParagraphs(cleaned),
+        },
+      ]
+}
+
+function formatSectionHeading(value?: string): string {
+  if (!value) {
+    return 'Overview'
+  }
+
+  return value
+    .split(' ')
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ')
+}
 
 export default function JobDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const savedResume = getResumeAnalysis()
 
-  const job = useMemo(() => {
-    const numericId = Number(id)
-    return jobs.find((item) => item.id === numericId) ?? null
+  const [job, setJob] = useState<Job | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function loadJob() {
+      if (!id) {
+        setError('Missing job id.')
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        setError('')
+        const data = await fetchJob(Number(id))
+        setJob(data)
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message)
+        } else {
+          setError('Failed to load job details.')
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    void loadJob()
   }, [id])
 
   const matchResult = useMemo(() => {
@@ -110,14 +193,37 @@ export default function JobDetailPage() {
     return matchResumeToJob(savedResume?.parsed_data, job)
   }, [job, savedResume])
 
-  if (!job) {
+  const descriptionSections = useMemo(() => {
+    const text = normalizeDescriptionText(job)
+    return buildDescriptionSections(text)
+  }, [job])
+
+  const salaryText = useMemo(() => {
+    if (!job) {
+      return 'N/A'
+    }
+
+    return formatSalary(job.salaryRange || job.salary)
+  }, [job])
+
+  if (isLoading) {
     return (
       <div className="page">
         <button className={styles.backBtn} onClick={() => navigate('/')}>
           ← Back to Jobs
         </button>
+        <div className={styles.emptyState}>Loading job details...</div>
+      </div>
+    )
+  }
 
-        <div className={styles.emptyState}>Job not found.</div>
+  if (error || !job) {
+    return (
+      <div className="page">
+        <button className={styles.backBtn} onClick={() => navigate('/')}>
+          ← Back to Jobs
+        </button>
+        <div className={styles.emptyState}>{error || 'Job not found.'}</div>
       </div>
     )
   }
@@ -146,23 +252,56 @@ export default function JobDetailPage() {
                 </div>
               </div>
 
-              <div className={styles.badge}>{job.badge}</div>
+              {job.badge && <div className={styles.badge}>{job.badge}</div>}
             </div>
           </section>
 
           <section className={styles.sectionCard}>
             <h2 className={styles.sectionTitle}>Role Overview</h2>
-            <p className={styles.description}>{job.description}</p>
+
+            {descriptionSections.length > 0 ? (
+              <div className={styles.descriptionLayout}>
+                {descriptionSections.map((section, index) => (
+                  <div
+                    key={`${section.heading || 'section'}-${index}`}
+                    className={styles.descriptionBlock}
+                  >
+                    <h3 className={styles.descriptionHeading}>
+                      {formatSectionHeading(section.heading)}
+                    </h3>
+
+                    <div className={styles.descriptionContent}>
+                      {section.items.map((item, itemIndex) => (
+                        <p
+                          key={`${section.heading || 'section'}-${itemIndex}`}
+                          className={styles.descriptionParagraph}
+                        >
+                          {item}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.description}>No description available.</p>
+            )}
           </section>
 
           <section className={styles.sectionCard}>
             <h2 className={styles.sectionTitle}>Key Skills</h2>
             <div className={styles.tagsWrap}>
-              {job.tags.map((tag) => (
-                <span key={tag} className={styles.skillTag}>
-                  {tag}
-                </span>
-              ))}
+              {Array.isArray(job.tags) && job.tags.length > 0 ? (
+                job.tags.map((tag) => (
+                  <span key={tag} className={styles.skillTag}>
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <div className={styles.matchEmpty}>
+                  No structured skills were available for this job.
+                </div>
+              )}
             </div>
           </section>
 
@@ -171,11 +310,11 @@ export default function JobDetailPage() {
             <div className={styles.detailsGrid}>
               <div className={styles.detailCard}>
                 <div className={styles.detailLabel}>Experience</div>
-                <div className={styles.detailValue}>{job.experienceLevel}</div>
+                <div className={styles.detailValue}>{job.experienceLevel || 'N/A'}</div>
               </div>
               <div className={styles.detailCard}>
                 <div className={styles.detailLabel}>Compensation</div>
-                <div className={styles.detailValue}>{job.salaryRange}</div>
+                <div className={styles.detailValue}>{salaryText}</div>
               </div>
               <div className={styles.detailCard}>
                 <div className={styles.detailLabel}>Job Type</div>
@@ -183,7 +322,7 @@ export default function JobDetailPage() {
               </div>
               <div className={styles.detailCard}>
                 <div className={styles.detailLabel}>Posted</div>
-                <div className={styles.detailValue}>{job.posted}</div>
+                <div className={styles.detailValue}>{job.posted || 'N/A'}</div>
               </div>
             </div>
           </section>
@@ -201,7 +340,12 @@ export default function JobDetailPage() {
                 <Link
                   to="/resume"
                   className="btn-primary"
-                  style={{ width: '100%', padding: '11px', justifyContent: 'center', marginTop: '14px' }}
+                  style={{
+                    width: '100%',
+                    padding: '11px',
+                    justifyContent: 'center',
+                    marginTop: '14px',
+                  }}
                 >
                   Upload Resume
                 </Link>
@@ -246,13 +390,42 @@ export default function JobDetailPage() {
                   )}
                 </div>
 
+                {job.applicationLink ? (
+                  <button
+                    className="btn-primary"
+                    style={{
+                      width: '100%',
+                      padding: '11px',
+                      justifyContent: 'center',
+                      marginTop: '14px',
+                    }}
+                    onClick={() =>
+                      window.open(job.applicationLink, '_blank', 'noopener,noreferrer')
+                    }
+                  >
+                    Apply Now
+                  </button>
+                ) : (
+                  <button
+                    className="btn-outline"
+                    style={{
+                      width: '100%',
+                      padding: '11px',
+                      justifyContent: 'center',
+                      marginTop: '14px',
+                    }}
+                    disabled
+                  >
+                    Application Link Unavailable
+                  </button>
+                )}
+
                 <button
-                  className="btn-primary"
-                  style={{ width: '100%', padding: '11px', justifyContent: 'center', marginTop: '14px' }}
+                  className="btn-outline"
+                  style={{ marginTop: '8px' }}
+                  disabled
+                  title="Save Job is not implemented in this MVP yet."
                 >
-                  Apply Now
-                </button>
-                <button className="btn-outline" style={{ marginTop: '8px' }}>
                   Save Job
                 </button>
               </>
@@ -262,7 +435,7 @@ export default function JobDetailPage() {
           <div className={styles.interviewCard}>
             <h3 className={styles.interviewTitle}>AI Interview Prep</h3>
             <div className={styles.interviewEmpty}>
-              Interview questions will load once backend is connected.
+              Interview questions will load here once the interview panel is connected.
             </div>
           </div>
         </aside>
