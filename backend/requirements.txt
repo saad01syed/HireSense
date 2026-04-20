@@ -1,10 +1,9 @@
 fastapi
 uvicorn
 sqlalchemy
-pymysql
+mysql-connector-python
 python-dotenv
 apscheduler
 requests
 beautifulsoup4
-# AI provider SDK — TBD (openai / anthropic)
 python-multipart

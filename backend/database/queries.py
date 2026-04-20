@@ -148,50 +148,142 @@ def _map_db_row_to_frontend_job(row):
     }
 
 
+def _nonempty_str(value):
+    if value is None:
+        return None
+    s = str(value).strip()
+    return s if s else None
+
+
+def _sanitize_salary_for_db(raw_salary):
+    if raw_salary is None:
+        return None
+    try:
+        value = int(raw_salary)
+    except (TypeError, ValueError):
+        return None
+    if value < 0:
+        return None
+    if value > 2_147_483_647:
+        return None
+    return value
+
+
 def insert_job(job):
+    """Insert one job row. Returns True on success, False if skipped or failed."""
     conn = get_connection()
     cursor = conn.cursor()
 
-    query = """
-        INSERT INTO job_data (
-            job_title,
-            company,
-            location,
-            salary,
-            date_posted,
-            application_link,
-            job_description,
-            skills,
-            job_type,
-            experience_level,
-            work_style
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """
-
+    salary_value = _sanitize_salary_for_db(job.get("salary"))
     title = job.get("job_title")
+    job_type_value = _normalize_job_type_for_db(job.get("job_type"), title)
+    experience_level_value = _normalize_experience_level_for_db(job.get("experience_level"))
+    work_style_value = _normalize_work_style_for_db(job.get("work_style"))
 
-    values = (
+    columns = [
+        "job_title",
+        "company",
+        "location",
+        "salary",
+        "date_posted",
+        "application_link",
+        "job_description",
+        "skills",
+        "job_type",
+        "experience_level",
+        "work_style",
+    ]
+
+    values = [
         title,
         job.get("company"),
         job.get("location"),
-        job.get("salary"),
+        salary_value,
         job.get("date_posted"),
         job.get("application_link"),
         job.get("job_description"),
         json.dumps(job.get("skills", [])),
-        _normalize_job_type_for_db(job.get("job_type"), title),
-        _normalize_experience_level_for_db(job.get("experience_level")),
-        _normalize_work_style_for_db(job.get("work_style")),
-    )
+        job_type_value,
+        experience_level_value,
+        work_style_value,
+    ]
+
+    placeholders = ", ".join(["%s"] * len(values))
+    column_sql = ", ".join(columns)
+    query = f"""
+        INSERT INTO job_data (
+            {column_sql}
+        )
+        VALUES ({placeholders})
+    """
+    values = tuple(values)
 
     try:
         cursor.execute(query, values)
         conn.commit()
+        row_id = cursor.lastrowid
+        print(
+            f"[db] insert_job OK: lastrowid={row_id}, title={job.get('job_title')!r}",
+            flush=True,
+        )
+        return True
+    except mysql.connector.DataError as exc:
+        if getattr(exc, "errno", None) == 1264 and salary_value is not None:
+            try:
+                conn.rollback()
+                values_no_salary = list(values)
+                values_no_salary[3] = None
+                cursor.execute(query, tuple(values_no_salary))
+                conn.commit()
+                row_id = cursor.lastrowid
+                print(
+                    f"[db] insert_job RETRY salary=NULL: lastrowid={row_id}, title={job.get('job_title')!r}",
+                    flush=True,
+                )
+                return True
+            except mysql.connector.Error as retry_exc:
+                conn.rollback()
+                print(
+                    f"[db] insert_job FAILED (retry): {retry_exc!r} | title={job.get('job_title')!r}",
+                    flush=True,
+                )
+                return False
+        conn.rollback()
+        print(
+            f"[db] insert_job FAILED (data): {exc!r} | title={job.get('job_title')!r}",
+            flush=True,
+        )
+        return False
     except mysql.connector.IntegrityError as exc:
+        conn.rollback()
         if getattr(exc, "errno", None) == 1062:
-            return
-        raise
+            print(
+                f"[db] insert_job SKIP duplicate: title={job.get('job_title')!r}",
+                flush=True,
+            )
+            return False
+        print(
+            f"[db] insert_job FAILED (integrity): {exc!r} | title={job.get('job_title')!r}",
+            flush=True,
+        )
+        return False
+    except mysql.connector.Error as exc:
+        conn.rollback()
+        print(
+            f"[db] insert_job FAILED (db): {exc!r} | title={job.get('job_title')!r}",
+            flush=True,
+        )
+        return False
+    except Exception as exc:
+        try:
+            conn.rollback()
+        except mysql.connector.Error:
+            pass
+        print(
+            f"[db] insert_job FAILED: {exc!r} | title={job.get('job_title')!r}",
+            flush=True,
+        )
+        return False
     finally:
         cursor.close()
         conn.close()
