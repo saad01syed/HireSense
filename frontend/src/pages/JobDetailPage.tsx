@@ -5,6 +5,7 @@ import type { Job } from '../types'
 import { getResumeAnalysis } from '../utils/resumeStorage'
 import { matchResumeToJob } from '../utils/jobMatcher'
 import { formatSalary } from '../utils/formatSalary'
+import AIInterviewPanel from '../components/AIInterviewPanel'
 import styles from './JobDetailPage.module.css'
 
 type DescriptionSection = {
@@ -433,10 +434,12 @@ export default function JobDetailPage() {
           </div>
 
           <div className={styles.interviewCard}>
-            <h3 className={styles.interviewTitle}>AI Interview Prep</h3>
-            <div className={styles.interviewEmpty}>
-              Interview questions will load here once the interview panel is connected.
-            </div>
+            <AIInterviewPanel
+              jobId={job.id}
+              jobTitle={job.title}
+              company={job.company}
+              resumeData={savedResume?.parsed_data ?? null}
+            />
           </div>
         </aside>
       </div>

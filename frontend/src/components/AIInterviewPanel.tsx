@@ -1,284 +1,309 @@
-import { useState } from "react";
+import { useMemo, useState } from 'react'
+import type { ParsedResumeData } from '../api/resume'
+import {
+  startInterview,
+  submitInterviewAnswer,
+  type FinalInterviewResult,
+  type InterviewFeedback,
+  type InterviewQuestion,
+} from '../api/interview'
+import styles from './AIInterviewPanel.module.css'
 
-interface Job {
-  job_id: number;
-  title: string;
-  company: string;
-  location: string;
-  description: string;
-  requirements: string[];
+type Props = {
+  jobId: number
+  jobTitle: string
+  company: string
+  resumeData: ParsedResumeData | null
 }
 
-interface ResumeAnalysis {
-  resume_id: number;
-  user_id: number;
-  detected_skills: { name: string; score?: number }[];
-  summary: string;
-  score: number;
-}
+export default function AIInterviewPanel({
+  jobId,
+  jobTitle,
+  company,
+  resumeData,
+}: Props) {
+  const [hasStarted, setHasStarted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [sessionId, setSessionId] = useState<number | null>(null)
+  const [currentQuestion, setCurrentQuestion] = useState<InterviewQuestion | null>(null)
+  const [draftAnswer, setDraftAnswer] = useState('')
+  const [feedback, setFeedback] = useState<InterviewFeedback | null>(null)
+  const [pendingNextQuestion, setPendingNextQuestion] = useState<InterviewQuestion | null>(null)
+  const [finalResult, setFinalResult] = useState<FinalInterviewResult | null>(null)
+  const [error, setError] = useState('')
 
-interface InterviewQuestion {
-  id: number;
-  question: string;
-}
+  const canStart = Boolean(resumeData)
 
-interface FeedbackResult {
-  feedback: string;
-  score: number;
-  suggestion: string;
-}
+  const resumeSummary = useMemo(() => {
+    if (!resumeData) {
+      return null
+    }
 
-const MOCK_JOB: Job = {
-  job_id: 1,
-  title: "Software Engineer Intern",
-  company: "Ericsson",
-  location: "Dallas, TX",
-  description: "Build scalable backend services and APIs.",
-  requirements: ["Python", "React", "REST APIs", "Git"],
-};
-
-const MOCK_RESUME: ResumeAnalysis = {
-  resume_id: 1,
-  user_id: 1,
-  detected_skills: [
-    { name: "Python", score: 92 },
-    { name: "React", score: 80 },
-    { name: "FastAPI", score: 85 },
-  ],
-  summary: "Strong backend and full stack experience with solid project work.",
-  score: 88,
-};
-
-function generateQuestions(job: Job, resume: ResumeAnalysis): InterviewQuestion[] {
-  const questions: InterviewQuestion[] = [];
-  let id = 1;
-
-  questions.push({
-    id: id++,
-    question: `Why are you interested in the ${job.title} role at ${job.company}?`,
-  });
-
-  const matchedSkills = job.requirements.filter((req) =>
-    resume.detected_skills.some(
-      (s) => s.name.toLowerCase() === req.toLowerCase()
-    )
-  );
-
-  matchedSkills.slice(0, 2).forEach((skill) => {
-    questions.push({
-      id: id++,
-      question: `Can you walk me through a project where you used ${skill}?`,
-    });
-  });
-
-  const missingSkills = job.requirements.filter(
-    (req) =>
-      !resume.detected_skills.some(
-        (s) => s.name.toLowerCase() === req.toLowerCase()
-      )
-  );
-
-  if (missingSkills.length > 0) {
-    questions.push({
-      id: id++,
-      question: `The role requires ${missingSkills[0]}. How would you approach learning or working with it?`,
-    });
-  }
-
-  questions.push({
-    id: id++,
-    question: "Tell me about a time you had to debug a difficult problem. How did you approach it?",
-  });
-
-  return questions;
-}
-
-function generateFeedback(answer: string): FeedbackResult {
-  const wordCount = answer.trim().split(/\s+/).length;
-
-  if (wordCount < 10) {
     return {
-      feedback: "Your answer was quite short. Try to elaborate more with specific examples.",
-      score: 40,
-      suggestion: "Use the STAR method: Situation, Task, Action, Result.",
-    };
-  }
+      skills: resumeData.skills.slice(0, 4),
+      experienceCount: resumeData.experience_entries.length,
+      projectCount: resumeData.project_entries.length,
+    }
+  }, [resumeData])
 
-  if (wordCount < 30) {
-    return {
-      feedback: "Good start, but adding a concrete example would strengthen your answer.",
-      score: 65,
-      suggestion: "Try to mention a specific project or outcome.",
-    };
-  }
+  const handleStart = async () => {
+    if (!resumeData) {
+      return
+    }
 
-  return {
-    feedback: "Good answer! You provided detail and context.",
-    score: 85,
-    suggestion: "Consider quantifying your impact (e.g. 'reduced load time by 30%') to make it even stronger.",
-  };
-}
+    try {
+      setError('')
+      setFeedback(null)
+      setFinalResult(null)
+      setPendingNextQuestion(null)
+      setIsLoading(true)
 
-export default function AIInterviewPanel() {
-  const job = MOCK_JOB;
-  const resume = MOCK_RESUME;
+      const firstQuestion = await startInterview(jobId, resumeData)
 
-  const [stage, setStage] = useState<"idle" | "questions" | "answering" | "feedback" | "done">("idle");
-  const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answer, setAnswer] = useState("");
-  const [feedback, setFeedback] = useState<FeedbackResult | null>(null);
-  const [allFeedback, setAllFeedback] = useState<{ question: string; answer: string; result: FeedbackResult }[]>([]);
-
-  function handleStart() {
-    const generated = generateQuestions(job, resume);
-    setQuestions(generated);
-    setCurrentIndex(0);
-    setAnswer("");
-    setFeedback(null);
-    setAllFeedback([]);
-    setStage("answering");
-  }
-
-  function handleGenerateOnly() {
-    const generated = generateQuestions(job, resume);
-    setQuestions(generated);
-    setStage("questions");
-  }
-
-  function handleSubmitAnswer() {
-    if (!answer.trim()) return;
-    const result = generateFeedback(answer);
-    setFeedback(result);
-    setAllFeedback((prev) => [
-      ...prev,
-      { question: questions[currentIndex].question, answer, result },
-    ]);
-    setStage("feedback");
-  }
-
-  function handleNext() {
-    if (currentIndex + 1 < questions.length) {
-      setCurrentIndex((i) => i + 1);
-      setAnswer("");
-      setFeedback(null);
-      setStage("answering");
-    } else {
-      setStage("done");
+      setHasStarted(true)
+      setSessionId(firstQuestion.session_id)
+      setCurrentQuestion(firstQuestion)
+      setDraftAnswer('')
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Unable to start the interview right now.')
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  function handleRestart() {
-    setStage("idle");
-    setQuestions([]);
-    setCurrentIndex(0);
-    setAnswer("");
-    setFeedback(null);
-    setAllFeedback([]);
+  const handleSubmit = async () => {
+    if (!sessionId || !currentQuestion || !draftAnswer.trim()) {
+      return
+    }
+
+    try {
+      setError('')
+      setIsSubmitting(true)
+
+      const result = await submitInterviewAnswer(sessionId, draftAnswer.trim())
+
+      setFeedback(result.feedback)
+      setDraftAnswer('')
+
+      if (result.is_complete) {
+        setCurrentQuestion(null)
+        setPendingNextQuestion(null)
+        setFinalResult(result.final_result)
+      } else {
+        setPendingNextQuestion(result.next_question)
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Unable to submit your answer.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const overallScore =
-    allFeedback.length > 0
-      ? Math.round(allFeedback.reduce((sum, f) => sum + f.result.score, 0) / allFeedback.length)
-      : null;
+  const handleContinue = () => {
+    if (!pendingNextQuestion) {
+      return
+    }
+
+    setCurrentQuestion(pendingNextQuestion)
+    setPendingNextQuestion(null)
+  }
+
+  const handleRestart = () => {
+    setHasStarted(false)
+    setSessionId(null)
+    setCurrentQuestion(null)
+    setDraftAnswer('')
+    setFeedback(null)
+    setPendingNextQuestion(null)
+    setFinalResult(null)
+    setError('')
+  }
 
   return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "24px", maxWidth: "420px", fontFamily: "sans-serif", background: "#fff" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-        <span style={{ fontSize: "18px" }}>🎙️</span>
-        <span style={{ fontWeight: 600, fontSize: "15px" }}>AI Interview Practice</span>
+    <div className={styles.panel}>
+      <div className={styles.headerRow}>
+        <div className={styles.titleBlock}>
+          <div className={styles.eyebrow}>HireSense Interview Lab</div>
+          <h3 className={styles.title}>AI Interview Prep</h3>
+          <p className={styles.sub}>
+            Interview questions are generated from this job and your uploaded resume.
+          </p>
+        </div>
+
+        {currentQuestion && (
+          <div className={styles.progressPill}>
+            Q{currentQuestion.question_index}/{currentQuestion.total_questions}
+          </div>
+        )}
       </div>
-      <p style={{ fontSize: "13px", color: "#64748b", marginTop: "4px", marginBottom: "16px" }}>
-        Practice interview questions tailored to this role and your resume.
-      </p>
 
-      {stage === "idle" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <button onClick={handleStart} style={btnPrimary}>Start Interview</button>
-          <button onClick={handleGenerateOnly} style={btnSecondary}>Generate Practice Questions</button>
+      {!canStart ? (
+        <div className={styles.emptyCard}>
+          Upload a resume first to unlock a personalized interview for <strong>{jobTitle}</strong>.
         </div>
-      )}
-
-      {stage === "questions" && (
-        <div>
-          <p style={{ fontSize: "13px", fontWeight: 600, marginBottom: "10px" }}>Practice Questions for {job.title}:</p>
-          <ol style={{ paddingLeft: "18px", fontSize: "13px", color: "#334155", lineHeight: "1.8" }}>
-            {questions.map((q) => <li key={q.id}>{q.question}</li>)}
-          </ol>
-          <button onClick={handleStart} style={{ ...btnPrimary, marginTop: "16px" }}>Start Interview</button>
-        </div>
-      )}
-
-      {stage === "answering" && (
-        <div>
-          <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "8px" }}>Question {currentIndex + 1} of {questions.length}</div>
-          <p style={{ fontSize: "14px", fontWeight: 500, color: "#1e293b", marginBottom: "12px", lineHeight: "1.5" }}>{questions[currentIndex].question}</p>
-          <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Type your answer here..." rows={5} style={{ width: "100%", borderRadius: "8px", border: "1px solid #cbd5e1", padding: "10px", fontSize: "13px", resize: "vertical", boxSizing: "border-box", outline: "none" }} />
-          <button onClick={handleSubmitAnswer} disabled={!answer.trim()} style={{ ...btnPrimary, marginTop: "10px", opacity: answer.trim() ? 1 : 0.5 }}>Submit Answer</button>
-        </div>
-      )}
-
-      {stage === "feedback" && feedback && (
-        <div>
-          <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "8px" }}>Question {currentIndex + 1} of {questions.length}</div>
-          <p style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b", marginBottom: "10px" }}>{questions[currentIndex].question}</p>
-          <div style={{ marginBottom: "12px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
-              <span>Score</span>
-              <span style={{ fontWeight: 600, color: scoreColor(feedback.score) }}>{feedback.score}/100</span>
-            </div>
-            <div style={{ background: "#e2e8f0", borderRadius: "99px", height: "6px" }}>
-              <div style={{ width: `${feedback.score}%`, background: scoreColor(feedback.score), height: "6px", borderRadius: "99px", transition: "width 0.4s ease" }} />
-            </div>
+      ) : !hasStarted ? (
+        <div className={styles.startCard}>
+          <div className={styles.startHeadline}>
+            Start a job-specific interview for {jobTitle} at {company}
           </div>
-          <div style={{ background: "#f8fafc", borderRadius: "8px", padding: "12px", marginBottom: "10px", fontSize: "13px", color: "#334155" }}>
-            <strong>Feedback:</strong> {feedback.feedback}
-          </div>
-          <div style={{ background: "#eff6ff", borderRadius: "8px", padding: "12px", marginBottom: "14px", fontSize: "13px", color: "#1e40af" }}>
-            <strong>Tip:</strong> {feedback.suggestion}
-          </div>
-          <button onClick={handleNext} style={btnPrimary}>{currentIndex + 1 < questions.length ? "Next Question →" : "See Results"}</button>
-        </div>
-      )}
 
-      {stage === "done" && (
-        <div>
-          <p style={{ fontWeight: 600, fontSize: "15px", marginBottom: "8px" }}>Interview Complete 🎉</p>
-          {overallScore !== null && (
-            <div style={{ marginBottom: "16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#64748b", marginBottom: "4px" }}>
-                <span>Overall Score</span>
-                <span style={{ fontWeight: 700, color: scoreColor(overallScore) }}>{overallScore}/100</span>
-              </div>
-              <div style={{ background: "#e2e8f0", borderRadius: "99px", height: "8px" }}>
-                <div style={{ width: `${overallScore}%`, background: scoreColor(overallScore), height: "8px", borderRadius: "99px" }} />
-              </div>
+          <div className={styles.startText}>
+            HireSense will generate role-aware questions using your resume, the job’s required skills,
+            and the job description context.
+          </div>
+
+          {resumeSummary && (
+            <div className={styles.resumeLockup}>
+              Resume signal ready • {resumeSummary.skills.length} highlighted skills •{' '}
+              {resumeSummary.experienceCount} experience entries • {resumeSummary.projectCount} projects
             </div>
           )}
-          {allFeedback.map((item, i) => (
-            <div key={i} style={{ borderTop: "1px solid #e2e8f0", paddingTop: "10px", marginTop: "10px", fontSize: "13px" }}>
-              <p style={{ fontWeight: 500, color: "#1e293b", marginBottom: "4px" }}>Q{i + 1}: {item.question}</p>
-              <p style={{ color: "#64748b", marginBottom: "4px" }}>Your answer: {item.answer}</p>
-              <p style={{ color: scoreColor(item.result.score) }}>Score: {item.result.score}/100 — {item.result.feedback}</p>
-            </div>
-          ))}
-          <button onClick={handleRestart} style={{ ...btnSecondary, marginTop: "16px" }}>Restart</button>
+
+          <div className={styles.actionRow}>
+            <button className="btn-primary" onClick={() => void handleStart()} disabled={isLoading}>
+              {isLoading ? 'Generating...' : 'Start Interview'}
+            </button>
+          </div>
+
+          {error && <div className={styles.errorText}>{error}</div>}
         </div>
+      ) : finalResult ? (
+        <div className={styles.resultsCard}>
+          <div className={styles.resultsLabel}>Final Interview Results</div>
+          <div className={styles.finalScore}>{finalResult.final_score}/100</div>
+          <div className={styles.resultsSummary}>{finalResult.overall_summary}</div>
+
+          <div className={styles.resultsGrid}>
+            <div>
+              <div className={styles.feedbackSectionTitle}>Top Strengths</div>
+              <ul className={styles.feedbackList}>
+                {finalResult.top_strengths.length > 0 ? (
+                  finalResult.top_strengths.map((item) => <li key={item}>{item}</li>)
+                ) : (
+                  <li>Strongest signals will appear here after more responses.</li>
+                )}
+              </ul>
+            </div>
+
+            <div>
+              <div className={styles.feedbackSectionTitle}>Next Steps</div>
+              <ul className={styles.feedbackList}>
+                {finalResult.next_steps.length > 0 ? (
+                  finalResult.next_steps.map((item) => <li key={item}>{item}</li>)
+                ) : (
+                  <li>Continue refining your answers with more concrete, role-specific detail.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+
+          <div className={styles.actionRow}>
+            <button className="btn-outline" onClick={handleRestart}>
+              Start New Interview
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {currentQuestion && (
+            <div className={styles.questionCard}>
+              <div className={styles.questionLabel}>Current Question</div>
+              <div className={styles.focusArea}>{currentQuestion.focus_area}</div>
+              <div className={styles.questionPrompt}>{currentQuestion.prompt}</div>
+
+              {currentQuestion.tips.length > 0 && (
+                <ul className={styles.tipList}>
+                  {currentQuestion.tips.map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {feedback && (
+            <div className={styles.feedbackCard}>
+              <div className={styles.feedbackLabel}>Feedback</div>
+
+              <div className={styles.feedbackTopRow}>
+                <div className={styles.scoreBadge}>{feedback.score}/100</div>
+                <div className={styles.benchmark}>{feedback.benchmark}</div>
+              </div>
+
+              <div className={styles.summary}>{feedback.summary}</div>
+
+              <div className={styles.feedbackGrid}>
+                <div>
+                  <div className={styles.feedbackSectionTitle}>Strengths</div>
+                  <ul className={styles.feedbackList}>
+                    {feedback.strengths.length > 0 ? (
+                      feedback.strengths.map((item) => <li key={item}>{item}</li>)
+                    ) : (
+                      <li>No strengths were captured for this answer.</li>
+                    )}
+                  </ul>
+                </div>
+
+                <div>
+                  <div className={styles.feedbackSectionTitle}>Improvements</div>
+                  <ul className={styles.feedbackList}>
+                    {feedback.improvements.length > 0 ? (
+                      feedback.improvements.map((item) => <li key={item}>{item}</li>)
+                    ) : (
+                      <li>No improvements were suggested for this answer.</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              {pendingNextQuestion && (
+                <div className={styles.actionRow}>
+                  <button className="btn-primary" onClick={handleContinue}>
+                    Continue to Next Question
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentQuestion && !pendingNextQuestion && (
+            <div className={styles.startCard}>
+              <div className={styles.questionLabel}>Your Answer</div>
+              <textarea
+                className={styles.answerBox}
+                placeholder="Write your answer here. Use a clear problem → action → result structure when possible."
+                value={draftAnswer}
+                onChange={(e) => setDraftAnswer(e.target.value)}
+              />
+
+              <div className={styles.actionRow}>
+                <button
+                  className="btn-primary"
+                  onClick={() => void handleSubmit()}
+                  disabled={isSubmitting || draftAnswer.trim().length === 0}
+                >
+                  {isSubmitting ? 'Scoring Answer...' : 'Submit Answer'}
+                </button>
+
+                <button className="btn-outline" onClick={handleRestart} disabled={isSubmitting}>
+                  Restart
+                </button>
+              </div>
+
+              {error && <div className={styles.errorText}>{error}</div>}
+            </div>
+          )}
+        </>
       )}
     </div>
-  );
-}
-
-const btnPrimary: React.CSSProperties = {
-  width: "100%", padding: "10px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer",
-};
-
-const btnSecondary: React.CSSProperties = {
-  width: "100%", padding: "10px", background: "#fff", color: "#2563eb", border: "1px solid #2563eb", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer",
-};
-
-function scoreColor(score: number): string {
-  if (score >= 75) return "#16a34a";
-  if (score >= 50) return "#d97706";
-  return "#dc2626";
+  )
 }

@@ -197,9 +197,13 @@
   gap: 18px;
 }
 
-.matchCard,
-.interviewCard {
+.matchCard {
   padding: 22px;
+}
+
+.interviewCard {
+  padding: 0;
+  overflow: hidden;
 }
 
 .matchLabel {
@@ -248,27 +252,6 @@
 }
 
 .matchEmpty {
-  color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.interviewTitle {
-  margin: 0 0 12px 0;
-  font-size: 22px;
-  color: var(--text-primary);
-}
-
-.interviewEmpty {
-  min-height: 88px;
-  border: 1px dashed var(--border);
-  border-radius: 16px;
-  background: #fafbfe;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 18px;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.5;
