@@ -24,6 +24,12 @@
   align-items: start;
 }
 
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .uploadBox {
   background: var(--surface);
   border: 2px dashed var(--border-strong);
@@ -123,7 +129,6 @@
 }
 
 .recentCard {
-  margin-top: 20px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -160,9 +165,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
+  padding: 12px;
   background: var(--surface2);
   border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 
 .recentFileBadge {
@@ -199,7 +205,44 @@
 .recentFileStatus {
   font-size: 0.75rem;
   color: var(--green);
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.commandGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.commandCard {
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid var(--border);
+}
+
+.commandLabel {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.commandValue {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.commandSub {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
 }
 
 .analysisCard {
@@ -342,6 +385,35 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 12px;
+}
+
+.priorityFixGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.priorityFixCard {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+
+.priorityFixLabel {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.priorityFixText {
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  font-weight: 600;
 }
 
 .infoGrid {
@@ -553,10 +625,8 @@
     grid-template-columns: 1fr;
   }
 
-  .snapshotGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
+  .snapshotGrid,
+  .priorityFixGrid,
   .threeColumnGrid {
     grid-template-columns: 1fr;
   }

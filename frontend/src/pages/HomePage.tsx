@@ -9,6 +9,26 @@ import { matchResumeToJob } from '../utils/jobMatcher'
 import type { Job } from '../types'
 import styles from './HomePage.module.css'
 
+function getSignalCenter(insights: MarketInsightsResponse | null, jobCount: number) {
+  const topSkill = insights?.trending_skills?.[0]?.name ?? 'Python'
+  const secondSkill = insights?.trending_skills?.[1]?.name ?? 'Cloud'
+  const topLocation = insights?.top_locations?.[0]?.city ?? 'Dallas'
+  const secondLocation = insights?.top_locations?.[1]?.city ?? 'Plano'
+
+  let confidence = 'Building signal'
+  if (jobCount >= 100) confidence = 'High match confidence'
+  else if (jobCount >= 25) confidence = 'Strong match signal'
+  else if (jobCount > 0) confidence = 'Emerging match signal'
+
+  return {
+    topSkill,
+    secondSkill,
+    topLocation,
+    secondLocation,
+    confidence,
+  }
+}
+
 export default function HomePage() {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<FilterState>(buildEmptyFilters())
@@ -99,6 +119,14 @@ export default function HomePage() {
       )
     })
     .sort((a, b) => b.match - a.match)
+    .map((job, index) => {
+      if (index < 3 && !job.badge) {
+        return { ...job, badge: 'Live' }
+      }
+      return job
+    })
+
+  const signalCenter = getSignalCenter(insights, filteredJobs.length)
 
   return (
     <div className="page">
@@ -118,14 +146,41 @@ export default function HomePage() {
           </div>
 
           <div className={styles.heroStatCard}>
-            <div className={styles.heroStatLabel}>Resume Matching</div>
+            <div className={styles.heroStatLabel}>Resume Signal Center</div>
             <div className={styles.heroStatValue}>
-              {savedResume ? `${filteredJobs.length} ranked jobs` : 'Ready to personalize'}
+              {savedResume ? signalCenter.confidence : 'Ready to personalize'}
             </div>
             <div className={styles.heroStatSub}>
               {savedResume
-                ? 'Your uploaded resume is actively being used to score jobs across the app.'
-                : 'Upload your resume to unlock personalized rankings and fit analysis.'}
+                ? 'HireSense is reading your uploaded resume against live roles, market signals, and recurring skill themes.'
+                : 'Upload your resume to unlock match confidence, market signals, and skill-based ranking.'}
+            </div>
+
+            <div className={styles.heroStatDivider} />
+
+            <div className={styles.heroSnapshotGrid}>
+              <div className={styles.heroSnapshotItem}>
+                <div className={styles.heroSnapshotLabel}>Strongest Markets</div>
+                <div className={styles.heroSnapshotValue}>
+                  {signalCenter.topLocation}, {signalCenter.secondLocation}
+                </div>
+              </div>
+
+              <div className={styles.heroSnapshotItem}>
+                <div className={styles.heroSnapshotLabel}>Top Skill Themes</div>
+                <div className={styles.heroSnapshotValue}>
+                  {signalCenter.topSkill}, {signalCenter.secondSkill}
+                </div>
+              </div>
+
+              <div className={styles.heroSnapshotItem}>
+                <div className={styles.heroSnapshotLabel}>Live Insight</div>
+                <div className={styles.heroSnapshotValue}>
+                  {savedResume
+                    ? 'Your resume is actively shaping match rankings across the feed.'
+                    : 'Once uploaded, your resume will drive match quality across the app.'}
+                </div>
+              </div>
             </div>
           </div>
         </div>
