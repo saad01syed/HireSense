@@ -1,0 +1,251 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-family: 'Syne', sans-serif;
+  line-height: 1.1;
+}
+
+.sub {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.progressPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(47, 102, 245, 0.1);
+  color: var(--accent);
+  border: 1px solid rgba(47, 102, 245, 0.14);
+  font-size: 0.76rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.startCard,
+.questionCard,
+.feedbackCard,
+.resultsCard,
+.emptyCard {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffff 0%, #fafcff 100%);
+  padding: 16px;
+}
+
+.startCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.startHeadline {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+.startText {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.resumeLockup {
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.questionLabel,
+.feedbackLabel,
+.resultsLabel {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.focusArea {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(47, 102, 245, 0.08);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.questionPrompt {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  font-weight: 600;
+}
+
+.tipList {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.answerBox {
+  width: 100%;
+  min-height: 140px;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 14px;
+  font: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.answerBox:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(47, 102, 245, 0.08);
+}
+
+.actionRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.feedbackTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.scoreBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: rgba(31, 183, 106, 0.1);
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: 1px solid rgba(31, 183, 106, 0.14);
+}
+
+.benchmark {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.summary {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  margin-bottom: 14px;
+}
+
+.feedbackGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.feedbackSectionTitle {
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.feedbackList {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.finalScore {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.resultsSummary {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin-bottom: 14px;
+}
+
+.resultsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.emptyCard {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.errorText {
+  color: var(--red);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .headerRow,
+  .feedbackTopRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import database.models  # noqa: F401
+from api.interview import router as interview_router
 from api.jobs import router as jobs_router
 from api.resume import router as resume_router
 from api.routers import auth
@@ -21,6 +23,7 @@ app.add_middleware(
 app.include_router(jobs_router)
 app.include_router(resume_router)
 app.include_router(auth.router)
+app.include_router(interview_router)
 
 
 @app.get("/")
