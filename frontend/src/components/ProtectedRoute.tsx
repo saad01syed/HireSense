@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom'
+import { isAuthenticated } from '../api/auth'
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuth = localStorage.getItem('mock_auth') === 'true'
-  return isAuth ? <>{children}</> : <Navigate to="/login" replace />
+  return isAuthenticated() ? <>{children}</> : <Navigate to="/login" replace />
 }

@@ -1,28 +1,67 @@
-import client from "./client";
-import { AuthResponse } from "../types";
+import client from './client'
+import type { AuthResponse } from '../types'
+
+const AUTH_STORAGE_KEY = 'hiresense_auth_session'
+
+export type StoredAuthSession = AuthResponse
 
 export const signup = async (
   username: string,
   email: string,
-  password: string
+  password: string,
 ): Promise<AuthResponse> => {
-  const res = await client.post("/auth/signup", { username, email, password });
-  return res.data;
-};
+  const res = await client.post<AuthResponse>('/auth/signup', { username, email, password })
+  saveAuthSession(res.data)
+  return res.data
+}
 
 export const login = async (
   email: string,
-  password: string
+  password: string,
 ): Promise<AuthResponse> => {
-  const res = await client.post("/auth/login", { email, password });
-  return res.data;
-};
+  const res = await client.post<AuthResponse>('/auth/login', { email, password })
+  saveAuthSession(res.data)
+  return res.data
+}
 
-export const logout = async (token: string): Promise<void> => {
-  await client.post("/auth/logout", null, { params: { token } });
-};
+export const logout = async (token?: string): Promise<void> => {
+  const session = getAuthSession()
+  const resolvedToken = token || session?.token
 
-// signup(name, email, password)  → POST /auth/signup  → store JWT
-// login(email, password)         → POST /auth/login   → store JWT
-// updateUser(fields)             → PATCH /auth/user
-// getMe()                        → GET  /auth/me
+  try {
+    if (resolvedToken) {
+      await client.post('/auth/logout', null, { params: { token: resolvedToken } })
+    }
+  } finally {
+    clearAuthSession()
+  }
+}
+
+export function saveAuthSession(session: AuthResponse): void {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+}
+
+export function getAuthSession(): StoredAuthSession | null {
+  const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+
+  if (!raw) {
+    return null
+  }
+
+  try {
+    return JSON.parse(raw) as StoredAuthSession
+  } catch (error) {
+    console.error('Failed to parse auth session:', error)
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+    return null
+  }
+}
+
+export function clearAuthSession(): void {
+  localStorage.removeItem(AUTH_STORAGE_KEY)
+  localStorage.removeItem('mock_auth')
+}
+
+export function isAuthenticated(): boolean {
+  return getAuthSession() !== null
+}

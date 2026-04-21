@@ -1,19 +1,40 @@
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .card {
+  position: relative;
   padding: 18px 16px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(248, 251, 255, 0.94) 100%);
-  border: 1px solid rgba(207, 217, 232, 0.88);
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.04);
-  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(246, 250, 255, 0.96) 100%);
+  border: 1px solid rgba(207, 217, 232, 0.92);
+  box-shadow:
+    0 16px 34px rgba(15, 23, 42, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  inset: auto -12% -48% auto;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(47, 102, 245, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.featureCard {
+  padding: 20px 18px;
 }
 
 .cardTitle {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -25,31 +46,105 @@
   text-transform: uppercase;
 }
 
+.titleAccent {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5f89ff 0%, var(--accent) 100%);
+  box-shadow: 0 0 0 4px rgba(47, 102, 245, 0.1);
+  flex-shrink: 0;
+}
+
 .statValue {
+  position: relative;
+  z-index: 1;
   margin-bottom: 6px;
   font-family: 'Syne', sans-serif;
-  font-size: 1.7rem;
-  line-height: 1.02;
-  letter-spacing: -0.03em;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
   color: var(--text-primary);
 }
 
 .statLabel {
+  position: relative;
+  z-index: 1;
   color: var(--text-secondary);
-  font-size: 0.92rem;
+  font-size: 0.93rem;
   line-height: 1.55;
 }
 
+.featureDivider {
+  position: relative;
+  z-index: 1;
+  margin: 16px 0 14px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(207, 217, 232, 0.9) 0%, rgba(207, 217, 232, 0.2) 100%);
+}
+
+.featureNoteLabel {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.featureNote {
+  position: relative;
+  z-index: 1;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
 .list {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.enhancedRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.rowLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.rankBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(47, 102, 245, 0.08);
+  border: 1px solid rgba(47, 102, 245, 0.12);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
 .skillPill {
   display: inline-flex;
   align-items: center;
   width: fit-content;
+  max-width: 100%;
   padding: 8px 12px;
   border-radius: 999px;
   background: rgba(47, 102, 245, 0.08);
@@ -59,27 +154,91 @@
   font-weight: 700;
 }
 
-.row {
+.countBadge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.progressList {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.progressItem {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.progressHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
 }
 
+.progressMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.progressTrack {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(207, 217, 232, 0.42);
+  overflow: hidden;
+}
+
+.progressFill,
+.progressFillSoft {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.progressFill {
+  background: linear-gradient(90deg, #5f89ff 0%, var(--accent) 100%);
+  box-shadow: 0 4px 12px rgba(47, 102, 245, 0.25);
+}
+
+.progressFillSoft {
+  background: linear-gradient(90deg, rgba(47, 102, 245, 0.34) 0%, rgba(47, 102, 245, 0.82) 100%);
+}
+
 .rowLabel {
   color: var(--text-primary);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .rowValue {
-  flex-shrink: 0;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 13px;
+  font-weight: 800;
+}
+
+.progressPct {
+  color: var(--text-muted);
+  font-size: 12px;
   font-weight: 700;
 }
 
 .muted {
+  position: relative;
+  z-index: 1;
   color: var(--text-muted);
   font-size: 0.9rem;
   line-height: 1.55;

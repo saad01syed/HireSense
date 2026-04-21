@@ -39,6 +39,18 @@ function getCardDescription(job: Job) {
   return ''
 }
 
+function getCardSignal(job: Job) {
+  if (job.match >= 90) {
+    return 'Hiring Now'
+  }
+
+  if (job.badge) {
+    return 'New Listing'
+  }
+
+  return null
+}
+
 export default function JobCard({ job }: Props) {
   const navigate = useNavigate()
 
@@ -50,8 +62,9 @@ export default function JobCard({ job }: Props) {
       : styles.onsite
 
   const badgeText = job.badge ? job.badge.toUpperCase() : null
+  const signalText = getCardSignal(job)
   const description = getCardDescription(job)
-  const visibleTags = Array.isArray(job.tags) ? job.tags.slice(0, 5) : []
+  const visibleTags = Array.isArray(job.tags) ? job.tags.slice(0, 4) : []
   const hiddenTagCount = Math.max(0, (job.tags?.length ?? 0) - visibleTags.length)
   const postedText = formatPosted(job.posted)
   const salaryText = formatSalary(job.salary ?? job.salaryRange)
@@ -67,7 +80,11 @@ export default function JobCard({ job }: Props) {
           <div className={styles.titleBlock}>
             <div className={styles.titleRow}>
               <h3 className={styles.title}>{job.title}</h3>
-              {badgeText && <span className={styles.badge}>{badgeText}</span>}
+
+              <div className={styles.topBadges}>
+                {signalText && <span className={styles.signalBadge}>{signalText}</span>}
+                {badgeText && <span className={styles.badge}>{badgeText}</span>}
+              </div>
             </div>
 
             <div className={styles.meta}>
@@ -93,19 +110,22 @@ export default function JobCard({ job }: Props) {
         {description && <p className={styles.description}>{description}</p>}
 
         <div className={styles.bottomRow}>
-          <div className={styles.tags}>
-            {visibleTags.map((tag) => (
-              <span key={tag} className={styles.tag}>
-                {tag}
-              </span>
-            ))}
-            {hiddenTagCount > 0 && <span className={styles.moreTag}>+{hiddenTagCount}</span>}
+          <div className={styles.tagsWrap}>
+            <div className={styles.tags}>
+              {visibleTags.map((tag) => (
+                <span key={tag} className={styles.tag}>
+                  {tag}
+                </span>
+              ))}
+              {hiddenTagCount > 0 && <span className={styles.moreTag}>+{hiddenTagCount}</span>}
+            </div>
           </div>
 
           <div className={styles.matchWrap}>
             <div className={styles.matchBadge}>
               <IconCheck /> {job.match}% match
             </div>
+            <div className={styles.matchHint}>Based on skills and role fit</div>
           </div>
         </div>
       </div>
