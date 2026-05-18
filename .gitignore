@@ -11,5 +11,6 @@ frontend/.env
 .venv/
 venv/
 
-# Frontend cache
-frontend/node_modules/.vite/
+# Frontend dependencies and build output (reinstall with: cd frontend && npm install)
+frontend/node_modules/
+frontend/dist/
