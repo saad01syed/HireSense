@@ -1,4 +1,7 @@
+import time
+
 try:
+    from ai.job_description import backfill_missing_summaries, simplify_jobs
     from crawler.parsers.linkedin import parse_job_linkedin
     from database.queries import insert_job
 except ImportError:
@@ -6,8 +9,12 @@ except ImportError:
     import sys
 
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    from ai.job_description import backfill_missing_summaries, simplify_jobs
     from crawler.parsers.linkedin import parse_job_linkedin
     from database.queries import insert_job
+
+# Stop each LinkedIn search URL after this many seconds (paging + job details).
+PER_URL_TIME_LIMIT_SEC = 5 * 60
 
 
 def _log_db_target():
@@ -30,50 +37,52 @@ def run():
 
     jobs = []
 
+    location = "Dallas-Fort%20Worth%20Metroplex"
+    # LinkedIn: f_E=1 Internship, f_E=2 Entry level
+    experience_filter = "f_E=1%2C2"
+    keywords = [
+        # fields instead of job titles
+        "artificial intelligence",
+        "computer science",
+        "information technology",
+        "cybersecurity",
+        "data science",
+        "software engineering",
+    ]
     linkedin_urls = [
-        "https://www.linkedin.com/jobs/search/?keywords=software%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=software%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=full%20stack%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=frontend%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=backend%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=data%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=data%20scientist&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=machine%20learning%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=devops%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=cloud%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=site%20reliability%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=qa%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=software%20test%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=mobile%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=ios%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=android%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=security%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=cybersecurity%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=embedded%20software%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=systems%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=platform%20engineer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=blockchain%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=game%20developer&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=software%20engineer%20intern&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=software%20developer%20intern&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=data%20analyst%20intern&location=Dallas-Fort%20Worth%20Metroplex",
-        "https://www.linkedin.com/jobs/search/?keywords=machine%20learning%20intern&location=Dallas-Fort%20Worth%20Metroplex",
+        (
+            "https://www.linkedin.com/jobs/search/"
+            f"?keywords={keyword.replace(' ', '%20')}"
+            f"&location={location}&{experience_filter}"
+        )
+        for keyword in keywords
     ]
 
     for i, url in enumerate(linkedin_urls, start=1):
-        print(f"[crawl] fetching URL {i}/{len(linkedin_urls)}: {url}", flush=True)
+        print(
+            f"[crawl] fetching URL {i}/{len(linkedin_urls)} "
+            f"(up to {PER_URL_TIME_LIMIT_SEC // 60} min): {url}",
+            flush=True,
+        )
+        started = time.monotonic()
         try:
-            new_jobs = parse_job_linkedin(url)
-            print(f"[crawl]   -> parsed {len(new_jobs)} job(s)", flush=True)
+            new_jobs = parse_job_linkedin(url, time_limit_sec=PER_URL_TIME_LIMIT_SEC)
+            elapsed = time.monotonic() - started
+            print(
+                f"[crawl]   -> parsed {len(new_jobs)} job(s) in {elapsed:.0f}s",
+                flush=True,
+            )
             jobs.extend(new_jobs)
         except Exception as exc:
             print(f"[crawl]   -> parser failed for URL {i}: {exc}", flush=True)
 
     print(f"[crawl] total jobs collected before insert: {len(jobs)}", flush=True)
 
-    if not jobs:
-        print("[crawl] no jobs found", flush=True)
-        return
+    if jobs:
+        print("[crawl] simplifying job descriptions", flush=True)
+        simplify_jobs(jobs)
+    else:
+        print("[crawl] no new jobs found", flush=True)
 
     inserted = 0
     failed = 0
@@ -91,6 +100,9 @@ def run():
             failed += 1
             print(f"[crawl] insert {idx}/{len(jobs)} FAILED: {title!r} - {exc}", flush=True)
             continue
+
+    print("[crawl] backfilling any remaining null summaries", flush=True)
+    backfill_missing_summaries()
 
     print(
         f"[crawl] done: processed={len(jobs)} inserted_or_skipped={inserted} failed={failed}",

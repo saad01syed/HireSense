@@ -1,13 +1,15 @@
 try:
-    from backend.database.connection import get_connection
+    from backend.database.connection import DB_NAME, get_connection
 except ImportError:
     try:
-        from database.connection import get_connection
+        from database.connection import DB_NAME, get_connection
     except ImportError:
-        from connection import get_connection
+        from connection import DB_NAME, get_connection
 
 import json
 import mysql.connector
+
+_JOB_SUMMARY_COLUMN_READY = False
 
 
 ALLOWED_JOB_TYPES = {
@@ -21,11 +23,9 @@ ALLOWED_JOB_TYPES = {
 ALLOWED_EXPERIENCE_LEVELS = {
     "internship": "Internship",
     "entry level": "Entry level",
-    "associate": "Associate",
-    "mid-senior level": "Mid-Senior level",
-    "director": "Director",
-    "executive": "Executive",
 }
+
+TARGET_EXPERIENCE_LEVELS = {"Internship", "Entry level"}
 
 
 def _normalize_job_type_for_db(raw, title=None):
@@ -57,9 +57,13 @@ def _normalize_job_type_for_db(raw, title=None):
     return "Full-time"
 
 
-def _normalize_experience_level_for_db(raw):
+def _normalize_experience_level_for_db(raw, title=None):
+    title_text = (title or "").lower()
+    if "intern" in title_text:
+        return "Internship"
+
     if not raw:
-        return "Entry level"
+        return None
 
     value = str(raw).strip()
     lower = value.lower()
@@ -71,16 +75,8 @@ def _normalize_experience_level_for_db(raw):
         return "Internship"
     if "entry" in lower or "junior" in lower:
         return "Entry level"
-    if "associate" in lower:
-        return "Associate"
-    if "senior" in lower or "mid" in lower:
-        return "Mid-Senior level"
-    if "director" in lower:
-        return "Director"
-    if "executive" in lower:
-        return "Executive"
 
-    return "Entry level"
+    return None
 
 
 def _normalize_work_style_for_db(raw):
@@ -116,6 +112,42 @@ def _safe_load_skills(raw):
     return []
 
 
+def ensure_job_description_summary_column():
+    """Add job_description_summary to existing MySQL tables. create_all will not alter them."""
+    global _JOB_SUMMARY_COLUMN_READY
+    if _JOB_SUMMARY_COLUMN_READY:
+        return
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = %s
+              AND TABLE_NAME = 'job_data'
+              AND COLUMN_NAME = 'job_description_summary'
+            """,
+            (DB_NAME,),
+        )
+        exists = cursor.fetchone()[0] > 0
+        if not exists:
+            try:
+                cursor.execute(
+                    "ALTER TABLE job_data ADD COLUMN job_description_summary TEXT NULL"
+                )
+                conn.commit()
+                print("[db] added job_data.job_description_summary", flush=True)
+            except mysql.connector.Error as exc:
+                if getattr(exc, "errno", None) != 1060:
+                    raise
+        _JOB_SUMMARY_COLUMN_READY = True
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def _map_db_row_to_frontend_job(row):
     skills = _safe_load_skills(row.get("skills"))
 
@@ -124,6 +156,9 @@ def _map_db_row_to_frontend_job(row):
     experience_level = row.get("experience_level") or "Entry level"
     salary = row.get("salary") or "Not listed"
     date_posted = row.get("date_posted")
+    original_description = row.get("job_description") or "No description available."
+    summary = (row.get("job_description_summary") or "").strip()
+    card_description = summary or original_description
 
     posted = str(date_posted) if date_posted else "Recently posted"
 
@@ -143,7 +178,8 @@ def _map_db_row_to_frontend_job(row):
         "hybrid": work_style,
         "experienceLevel": experience_level,
         "dateRange": "Live",
-        "description": row.get("job_description") or "No description available.",
+        "description": card_description,
+        "fullDescription": original_description,
         "applicationLink": row.get("application_link") or "",
     }
 
@@ -171,14 +207,27 @@ def _sanitize_salary_for_db(raw_salary):
 
 def insert_job(job):
     """Insert one job row. Returns True on success, False if skipped or failed."""
+    ensure_job_description_summary_column()
     conn = get_connection()
     cursor = conn.cursor()
 
     salary_value = _sanitize_salary_for_db(job.get("salary"))
     title = job.get("job_title")
     job_type_value = _normalize_job_type_for_db(job.get("job_type"), title)
-    experience_level_value = _normalize_experience_level_for_db(job.get("experience_level"))
+    experience_level_value = _normalize_experience_level_for_db(
+        job.get("experience_level"),
+        title,
+    )
     work_style_value = _normalize_work_style_for_db(job.get("work_style"))
+    summary = _nonempty_str(job.get("job_description_summary"))
+
+    if experience_level_value not in TARGET_EXPERIENCE_LEVELS:
+        print(
+            f"[db] insert_job SKIP non-target experience: "
+            f"title={title!r} experience={job.get('experience_level')!r}",
+            flush=True,
+        )
+        return False
 
     columns = [
         "job_title",
@@ -188,6 +237,7 @@ def insert_job(job):
         "date_posted",
         "application_link",
         "job_description",
+        "job_description_summary",
         "skills",
         "job_type",
         "experience_level",
@@ -202,6 +252,7 @@ def insert_job(job):
         job.get("date_posted"),
         job.get("application_link"),
         job.get("job_description"),
+        summary,
         json.dumps(job.get("skills", [])),
         job_type_value,
         experience_level_value,
@@ -289,6 +340,66 @@ def insert_job(job):
         conn.close()
 
 
+def fetch_jobs_missing_summaries():
+    """Rows that still need a card summary after crawl."""
+    ensure_job_description_summary_column()
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT
+                id,
+                job_title,
+                company,
+                job_description
+            FROM job_data
+            WHERE job_description IS NOT NULL
+              AND TRIM(job_description) <> ''
+              AND (
+                    job_description_summary IS NULL
+                    OR TRIM(job_description_summary) = ''
+              )
+            ORDER BY id DESC
+            """
+        )
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def update_job_description_summary(job_id, summary):
+    ensure_job_description_summary_column()
+    summary_text = _nonempty_str(summary)
+    if job_id is None or not summary_text:
+        return False
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE job_data
+            SET job_description_summary = %s
+            WHERE id = %s
+            """,
+            (summary_text, job_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    except mysql.connector.Error as exc:
+        conn.rollback()
+        print(
+            f"[db] update_job_description_summary FAILED: {exc!r} | id={job_id!r}",
+            flush=True,
+        )
+        return False
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def get_jobs_to_check():
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
@@ -329,6 +440,7 @@ def delete_job(job_id):
 
 
 def fetch_all_jobs_from_db():
+    ensure_job_description_summary_column()
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
@@ -343,11 +455,13 @@ def fetch_all_jobs_from_db():
             date_posted,
             application_link,
             job_description,
+            job_description_summary,
             skills,
             job_type,
             experience_level,
             work_style
         FROM job_data
+        WHERE experience_level IN ('Internship', 'Entry level')
         ORDER BY id DESC
         """
     )
@@ -361,6 +475,7 @@ def fetch_all_jobs_from_db():
 
 
 def fetch_job_by_id_from_db(job_id: int):
+    ensure_job_description_summary_column()
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
@@ -375,12 +490,14 @@ def fetch_job_by_id_from_db(job_id: int):
             date_posted,
             application_link,
             job_description,
+            job_description_summary,
             skills,
             job_type,
             experience_level,
             work_style
         FROM job_data
         WHERE id = %s
+          AND experience_level IN ('Internship', 'Entry level')
         LIMIT 1
         """,
         (job_id,),

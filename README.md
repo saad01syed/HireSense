@@ -1,4 +1,4 @@
-# PROJECT: Company Web Crawler and Job Openings Tracker
+# PROJECT: HireSense - Company Web Crawler and Job Openings Tracker
 
 # TEAM: SKYAK Solutions
 
@@ -9,12 +9,9 @@
 # TA: JORDAN BLACK
 
 # TODO:
-Kris: account creation, saved and applied jobs
-
-Anas: resume upload & parsing
-
-Saad: MySQL database and web crawler
-
-Yohannis: Ai interview
-
-Kaelin: Job Search & Filtering
+Fix searching and filtering
+Add more job sources
+Host the database
+Host the website
+Add the new proposed feature
+Crawler schedule

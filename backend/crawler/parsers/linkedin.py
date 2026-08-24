@@ -21,16 +21,32 @@ BASE_URL = "https://www.linkedin.com"
 SEARCH_RESULTS_PAGE_SIZE = 10
 # Space out paginated search calls; back-to-back requests often get HTTP 429.
 SEARCH_PAGE_DELAY_SEC = 1.75
+# Detail fetches are the bulk of traffic; no delay here is what usually trips 429s.
+JOB_DETAIL_DELAY_SEC = 0.5
 SEARCH_429_RETRY_SEC = 8.0
 SEARCH_MAX_RETRIES = 3
+# LinkedIn experience filter: 1 = Internship, 2 = Entry level
+TARGET_EXPERIENCE_FILTER = "1,2"
+TARGET_EXPERIENCE_LEVELS = {"Internship", "Entry level"}
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/124.0.0.0 Safari/537.36"
     ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "Referer": f"{BASE_URL}/jobs/search",
 }
+_SKILL_PATTERNS = [
+    (
+        skill,
+        re.compile(
+            r"(?<![A-Za-z0-9])" + re.escape(skill.lower()) + r"(?![A-Za-z0-9])"
+        ),
+    )
+    for skill in TECH_SKILLS
+]
 
 
 def _safe_text(node):
@@ -82,14 +98,47 @@ def _normalize_linkedin_text(text):
     )
 
 
+def _time_up(deadline):
+    return deadline is not None and time.monotonic() >= deadline
+
+
+def _sleep(seconds, deadline=None):
+    """Sleep up to `seconds`, but never past `deadline`. False if time is already up."""
+    if _time_up(deadline):
+        return False
+    if seconds <= 0:
+        return True
+    if deadline is not None:
+        seconds = min(seconds, deadline - time.monotonic())
+        if seconds <= 0:
+            return False
+    time.sleep(seconds)
+    return not _time_up(deadline)
+
+
+def _get_with_retries(session, url, params=None, timeout=15, deadline=None):
+    response = None
+    for attempt in range(SEARCH_MAX_RETRIES):
+        if _time_up(deadline):
+            return None
+        try:
+            response = session.get(url, params=params, timeout=timeout)
+        except requests.RequestException:
+            if attempt + 1 >= SEARCH_MAX_RETRIES:
+                raise
+            if not _sleep(SEARCH_429_RETRY_SEC * (attempt + 1), deadline):
+                return None
+            continue
+        if response.status_code != 429:
+            return response
+        if not _sleep(SEARCH_429_RETRY_SEC * (attempt + 1), deadline):
+            return None
+    return response
+
+
 def _extract_skills_from_description(description):
     normalized = _normalize_linkedin_text(description).lower()
-    found = []
-    for skill in TECH_SKILLS:
-        pattern = r"(?<![A-Za-z0-9])" + re.escape(skill.lower()) + r"(?![A-Za-z0-9])"
-        if re.search(pattern, normalized):
-            found.append(skill)
-    return found
+    return [skill for skill, pattern in _SKILL_PATTERNS if pattern.search(normalized)]
 
 
 def _normalize_href(href):
@@ -375,43 +424,66 @@ def _extract_search_params(start_url):
     return {
         "keywords": query.get("keywords", [""])[0],
         "location": query.get("location", [""])[0],
+        # Always keep HireSense scoped to internship + entry level.
+        "f_E": query.get("f_E", [TARGET_EXPERIENCE_FILTER])[0] or TARGET_EXPERIENCE_FILTER,
     }
+
+
+def _resolve_target_experience_level(raw, title=None):
+    """Return Internship/Entry level, or None if the posting is out of scope."""
+    title_text = (title or "").lower()
+    if "intern" in title_text:
+        return "Internship"
+
+    if not raw:
+        return None
+
+    lower = str(raw).strip().lower()
+    if "intern" in lower:
+        return "Internship"
+    if "entry" in lower or "junior" in lower:
+        return "Entry level"
+    return None
+
+
+def _job_id_from_href(href):
+    if not href:
+        return None
+    if "currentJobId=" in href:
+        parsed = urlparse(href)
+        current_job_id = parse_qs(parsed.query).get("currentJobId", [None])[0]
+        if current_job_id and current_job_id.isdigit():
+            return current_job_id
+    # Newer LinkedIn guest links often encode job id in path:
+    # /jobs/view/<slug>-<job_id>
+    match = re.search(r"/jobs/view/(?:[^/?#]*-)?(\d+)", href)
+    if match:
+        return match.group(1)
+    return None
+
 
 def _extract_job_ids(search_html):
     soup = BeautifulSoup(search_html, "html.parser")
     job_ids = []
 
-    for item in soup.select("li"):
-        job_id = item.get("data-entity-urn", "").split(":")[-1]
-        if job_id and job_id.isdigit():
+    # URN is often on a child card, not the wrapping <li>.
+    for node in soup.select("[data-entity-urn]"):
+        job_id = node.get("data-entity-urn", "").split(":")[-1]
+        if job_id.isdigit():
             job_ids.append(job_id)
-            continue
 
-        fallback_link = item.select_one("a.base-card__full-link")
-        if not fallback_link:
-            continue
-        href = fallback_link.get("href", "")
-        if "currentJobId=" in href:
-            parsed = urlparse(href)
-            current_job_id = parse_qs(parsed.query).get("currentJobId", [None])[0]
-            if current_job_id and current_job_id.isdigit():
-                job_ids.append(current_job_id)
-                continue
+    for link in soup.select("a.base-card__full-link, a[href*='/jobs/view/'], a[href*='currentJobId=']"):
+        job_id = _job_id_from_href(link.get("href", ""))
+        if job_id:
+            job_ids.append(job_id)
 
-        # Newer LinkedIn guest links often encode job id in path:
-        # /jobs/view/<slug>-<job_id>
-        match = re.search(r"/jobs/view/(?:[^/?#]*-)?(\d+)", href)
-        if match:
-            job_ids.append(match.group(1))
-
-    # Keep order but remove duplicates
     return list(dict.fromkeys(job_ids))
 
 
-def _extract_details_from_posting(job_id, session):
+def _extract_details_from_posting(job_id, session, deadline=None):
     details_url = f"{BASE_URL}/jobs-guest/jobs/api/jobPosting/{job_id}"
-    resp = session.get(details_url, timeout=15)
-    if resp.status_code != 200:
+    resp = _get_with_retries(session, details_url, deadline=deadline)
+    if not resp or resp.status_code != 200:
         return None
 
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -479,8 +551,16 @@ def _extract_details_from_posting(job_id, session):
         if external_from_description:
             application_link = external_from_description
 
+    job_title = _safe_text(soup.select_one("h2.top-card-layout__title"))
+    experience_level = _resolve_target_experience_level(
+        criteria.get("seniority level"),
+        job_title,
+    )
+    if experience_level not in TARGET_EXPERIENCE_LEVELS:
+        return None
+
     return {
-        "job_title": _safe_text(soup.select_one("h2.top-card-layout__title")),
+        "job_title": job_title,
         "company": _safe_text(
             soup.select_one("a.topcard__org-name-link, span.topcard__flavor")
         ),
@@ -493,14 +573,17 @@ def _extract_details_from_posting(job_id, session):
         "job_description": description,
         "skills": _extract_skills_from_description(description),
         "job_type": criteria.get("employment type"),
-        "experience_level": criteria.get("seniority level"),
+        "experience_level": experience_level,
         "work_style": criteria.get("workplace type"),
     }
 
 
-def parse_job_linkedin(start_url, max_jobs=60):
+def parse_job_linkedin(start_url, max_jobs=60, time_limit_sec=None):
     search_params = _extract_search_params(start_url)
     jobs = []
+    deadline = (
+        time.monotonic() + time_limit_sec if time_limit_sec and time_limit_sec > 0 else None
+    )
 
     with requests.Session() as session:
         session.headers.update(HEADERS)
@@ -508,20 +591,23 @@ def parse_job_linkedin(start_url, max_jobs=60):
         start = 0
         search_url = f"{BASE_URL}/jobs-guest/jobs/api/seeMoreJobPostings/search"
         while len(jobs) < max_jobs:
-            if start > 0:
-                time.sleep(SEARCH_PAGE_DELAY_SEC)
+            if _time_up(deadline):
+                break
+            if start > 0 and not _sleep(SEARCH_PAGE_DELAY_SEC, deadline):
+                break
 
             params = {
                 "keywords": search_params["keywords"],
                 "location": search_params["location"],
+                "f_E": search_params.get("f_E") or TARGET_EXPERIENCE_FILTER,
                 "start": start,
             }
-            search_response = None
-            for attempt in range(SEARCH_MAX_RETRIES):
-                search_response = session.get(search_url, params=params, timeout=15)
-                if search_response.status_code != 429:
-                    break
-                time.sleep(SEARCH_429_RETRY_SEC * (attempt + 1))
+            try:
+                search_response = _get_with_retries(
+                    session, search_url, params=params, deadline=deadline
+                )
+            except requests.RequestException:
+                break
 
             if not search_response or search_response.status_code != 200:
                 break
@@ -531,13 +617,19 @@ def parse_job_linkedin(start_url, max_jobs=60):
                 break
 
             for job_id in job_ids:
+                if _time_up(deadline):
+                    return jobs
+                if not _sleep(JOB_DETAIL_DELAY_SEC, deadline):
+                    return jobs
                 try:
-                    data = _extract_details_from_posting(job_id, session)
+                    data = _extract_details_from_posting(job_id, session, deadline=deadline)
                     if data and data["job_title"] and data["company"]:
                         jobs.append(data)
                     if len(jobs) >= max_jobs:
                         return jobs
                 except requests.RequestException:
+                    continue
+                except Exception:
                     continue
 
             start += SEARCH_RESULTS_PAGE_SIZE

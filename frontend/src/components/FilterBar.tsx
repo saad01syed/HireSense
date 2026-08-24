@@ -16,16 +16,10 @@ export const FILTER_DEFINITIONS = [
     label: 'Work style',
     options: ['Remote','Hybrid','On-site'],
   },
-  {
+    {
     id: 'experience',
     label: 'Experience',
-    options: [
-      'Internship',
-      'Entry level (0–2 yrs)',
-      'Mid level (2–5 yrs)',
-      'Senior (5–8 yrs)',
-      'Staff / Principal (8+ yrs)',
-    ],
+    options: ['Internship', 'Entry level'],
   },
   {
     id: 'salary',

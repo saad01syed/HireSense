@@ -12,6 +12,7 @@ export interface Job {
   logo: string
   hybrid: 'Remote' | 'Hybrid' | 'On-site'
   description?: string | JobDescription
+  fullDescription?: string
   experienceLevel?: string
   salaryRange?: string | number
   dateRange?: string
