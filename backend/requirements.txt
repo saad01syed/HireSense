@@ -7,3 +7,9 @@ apscheduler
 requests
 beautifulsoup4
 python-multipart
+email-validator
+passlib
+pdfplumber
+python-docx
+transformers
+torch

@@ -7,10 +7,12 @@ from api.jobs import router as jobs_router
 from api.resume import router as resume_router
 from api.routers import auth
 from database.connection import Base, engine
+from database.queries import ensure_job_description_summary_column
 
 app = FastAPI(title="HireSense API")
 
 Base.metadata.create_all(bind=engine)
+ensure_job_description_summary_column()
 
 app.add_middleware(
     CORSMiddleware,

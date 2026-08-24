@@ -15,6 +15,7 @@ class Job(Base):
     date_posted = Column(Date, nullable=True)
     application_link = Column(String(1000), nullable=True)
     job_description = Column(Text, nullable=True)
+    job_description_summary = Column(Text, nullable=True)
     skills = Column(Text, nullable=True)
     job_type = Column(String(100), nullable=True, default="Full-time")
     experience_level = Column(String(100), nullable=True)

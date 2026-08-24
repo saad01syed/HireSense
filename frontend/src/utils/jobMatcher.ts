@@ -2,6 +2,7 @@ type MatchableJob = {
   title?: string
   company?: string
   description?: string | { about?: string }
+  fullDescription?: string
   tags?: string[]
   skills?: string[]
 }
@@ -190,10 +191,13 @@ function getJobText(job: MatchableJob | undefined): string {
     return ''
   }
 
-  const descriptionText =
-    typeof job.description === 'string'
-      ? job.description
-      : job.description?.about || ''
+  let descriptionText = job.fullDescription || ''
+  if (!descriptionText) {
+    descriptionText =
+      typeof job.description === 'string'
+        ? job.description
+        : job.description?.about || ''
+  }
 
   return [job.title || '', job.company || '', descriptionText].join(' ').toLowerCase()
 }

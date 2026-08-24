@@ -28,15 +28,32 @@ function formatPosted(value?: string) {
 }
 
 function getCardDescription(job: Job) {
+  let text = ''
+
   if (typeof job.description === 'string') {
-    return job.description.trim()
+    text = job.description.trim()
+  } else if (job.description?.about) {
+    text = job.description.about.trim()
   }
 
-  if (job.description?.about) {
-    return job.description.about.trim()
+  if (!text) {
+    return ''
   }
 
-  return ''
+  const headingPattern =
+    /^(overview|responsibilities|requirements|qualifications|benefits|about)$/i
+  const lines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const firstContent =
+    lines.find(
+      (line) =>
+        !headingPattern.test(line.replace(/^#+\s*/, '')) && !/^[-•*]\s/.test(line)
+    ) || text
+
+  return firstContent.replace(/^overview[:\s-]+/i, '').trim()
 }
 
 function getCardSignal(job: Job) {

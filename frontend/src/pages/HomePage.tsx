@@ -134,14 +134,15 @@ export default function HomePage() {
         <div className={styles.heroGlow} />
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <div className={styles.heroEyebrow}>AI-powered job discovery</div>
+            <div className={styles.heroEyebrow}>Early-career job discovery</div>
             <h1 className={styles.heroTitle}>
-              Find the roles that actually <span className={styles.heroAccent}>fit you</span>.
+              Find the internships and entry-level roles that actually{' '}
+              <span className={styles.heroAccent}>fit you</span>.
             </h1>
             <p className={styles.heroSub}>
-              HireSense turns live job data into a personalized feed. Upload your resume,
-              compare against real roles, and instantly see where you match and what
-              skills you still need.
+              HireSense turns live internship and entry-level job data into a personalized feed.
+              Upload your resume, compare against real roles, and instantly see where you match
+              and what skills you still need.
             </p>
           </div>
 
