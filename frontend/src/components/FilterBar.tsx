@@ -1,22 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
+import { DATE_FILTER_OPTIONS, SALARY_FILTER_OPTIONS } from '../utils/jobFilters'
 import styles from './FilterBar.module.css'
 
 export const FILTER_DEFINITIONS = [
   {
     id: 'city',
     label: 'City',
-    options: [
-      'Dallas','Plano','Irving','Frisco','Richardson','Allen','McKinney',
-      'Garland','Carrollton','Lewisville','Arlington','Fort Worth',
-      'Southlake','Grapevine','Addison',
-    ],
+    options: [] as string[],
   },
   {
     id: 'style',
     label: 'Work style',
     options: ['Remote','Hybrid','On-site'],
   },
-    {
+  {
     id: 'experience',
     label: 'Experience',
     options: ['Internship', 'Entry level'],
@@ -24,7 +21,7 @@ export const FILTER_DEFINITIONS = [
   {
     id: 'salary',
     label: 'Salary',
-    options: ['Under $80k','$80k – $100k','$100k – $130k','$130k – $160k','$160k+'],
+    options: [...SALARY_FILTER_OPTIONS],
   },
   {
     id: 'type',
@@ -34,7 +31,7 @@ export const FILTER_DEFINITIONS = [
   {
     id: 'date',
     label: 'Date posted',
-    options: ['Last 24 hours','Last 7 days','Last 30 days'],
+    options: [...DATE_FILTER_OPTIONS],
   },
 ]
 
@@ -44,15 +41,24 @@ interface Props {
   filters: FilterState
   onChange: (filters: FilterState) => void
   resultCount: number
+  cityOptions?: string[]
 }
 
 export function buildEmptyFilters(): FilterState {
   return Object.fromEntries(FILTER_DEFINITIONS.map((f) => [f.id, new Set<string>()]))
 }
 
-export default function FilterBar({ filters, onChange, resultCount }: Props) {
+export default function FilterBar({
+  filters,
+  onChange,
+  resultCount,
+  cityOptions = [],
+}: Props) {
   const [openId, setOpenId] = useState<string | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
+  const definitions = FILTER_DEFINITIONS.map((filter) =>
+    filter.id === 'city' ? { ...filter, options: cityOptions } : filter
+  )
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -85,18 +91,18 @@ export default function FilterBar({ filters, onChange, resultCount }: Props) {
 
   const clearAll = () => onChange(buildEmptyFilters())
 
-  const totalSelected = FILTER_DEFINITIONS.reduce(
+  const totalSelected = definitions.reduce(
     (n, f) => n + (filters[f.id]?.size ?? 0), 0
   )
 
-  const pills = FILTER_DEFINITIONS.flatMap((f) =>
+  const pills = definitions.flatMap((f) =>
     [...(filters[f.id] ?? [])].map((val) => ({ filterId: f.id, val }))
   )
 
   return (
     <div className={styles.wrap} ref={barRef}>
       <div className={styles.topRow}>
-        {FILTER_DEFINITIONS.map((f, i) => {
+        {definitions.map((f, i) => {
           const count = filters[f.id]?.size ?? 0
           const isOpen = openId === f.id
           return (
@@ -116,16 +122,20 @@ export default function FilterBar({ filters, onChange, resultCount }: Props) {
 
                 {isOpen && (
                   <div className={styles.dropdown}>
-                    {f.options.map((opt) => (
-                      <label key={opt} className={styles.dropdownItem}>
-                        <input
-                          type="checkbox"
-                          checked={filters[f.id]?.has(opt) ?? false}
-                          onChange={(e) => check(f.id, opt, e.target.checked)}
-                        />
-                        {opt}
-                      </label>
-                    ))}
+                    {f.options.length === 0 ? (
+                      <div className={styles.dropdownEmpty}>No options yet</div>
+                    ) : (
+                      f.options.map((opt) => (
+                        <label key={opt} className={styles.dropdownItem}>
+                          <input
+                            type="checkbox"
+                            checked={filters[f.id]?.has(opt) ?? false}
+                            onChange={(e) => check(f.id, opt, e.target.checked)}
+                          />
+                          {opt}
+                        </label>
+                      ))
+                    )}
                   </div>
                 )}
               </div>

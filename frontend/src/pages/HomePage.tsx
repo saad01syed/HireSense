@@ -6,6 +6,12 @@ import { IconSearch } from '../components/Icons'
 import { fetchJobs, fetchMarketInsights, type MarketInsightsResponse } from '../api/jobs'
 import { getResumeAnalysis } from '../utils/resumeStorage'
 import { matchResumeToJob } from '../utils/jobMatcher'
+import {
+  jobMatchesCity,
+  jobMatchesDatePosted,
+  jobMatchesSalary,
+  uniqueCitiesFromJobs,
+} from '../utils/jobFilters'
 import type { Job } from '../types'
 import styles from './HomePage.module.css'
 
@@ -78,6 +84,8 @@ export default function HomePage() {
     })
   }, [jobs, savedResume])
 
+  const cityOptions = useMemo(() => uniqueCitiesFromJobs(jobs), [jobs])
+
   const filteredJobs = jobsWithMatch
     .filter((job) => {
       const q = query.toLowerCase()
@@ -88,34 +96,22 @@ export default function HomePage() {
         job.company.toLowerCase().includes(q) ||
         job.tags.some((t: string) => t.toLowerCase().includes(q))
 
-      const city = filters['city']
-      const style = filters['style']
-      const exp = filters['experience']
-      const salary = filters['salary']
-      const type = filters['type']
-      const date = filters['date']
-
-      const matchesCity =
-        city.size === 0 || city.has(job.location?.split(',')[0]?.trim())
       const matchesStyle =
-        style.size === 0 || style.has(job.hybrid)
+        filters.style.size === 0 || filters.style.has(job.hybrid)
       const matchesExp =
-        exp.size === 0 || exp.has(job.experienceLevel ?? '')
-      const matchesSalary =
-        salary.size === 0 || salary.has(job.salaryRange ?? '')
+        filters.experience.size === 0 ||
+        filters.experience.has(job.experienceLevel ?? '')
       const matchesType =
-        type.size === 0 || type.has(job.type)
-      const matchesDate =
-        date.size === 0 || date.has(job.dateRange ?? '')
+        filters.type.size === 0 || filters.type.has(job.type)
 
       return (
         matchesQuery &&
-        matchesCity &&
+        jobMatchesCity(job, filters.city) &&
         matchesStyle &&
         matchesExp &&
-        matchesSalary &&
+        jobMatchesSalary(job, filters.salary) &&
         matchesType &&
-        matchesDate
+        jobMatchesDatePosted(job, filters.date)
       )
     })
     .sort((a, b) => b.match - a.match)
@@ -208,6 +204,7 @@ export default function HomePage() {
         filters={filters}
         onChange={setFilters}
         resultCount={filteredJobs.length}
+        cityOptions={cityOptions}
       />
 
       <div className={styles.layout}>

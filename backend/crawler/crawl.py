@@ -3,6 +3,7 @@ import time
 try:
     from ai.job_description import backfill_missing_summaries, simplify_jobs
     from crawler.parsers.linkedin import parse_job_linkedin
+    from crawler.parsers.handshake import parse_job_handshake
     from database.queries import insert_job
 except ImportError:
     import os
@@ -11,11 +12,11 @@ except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from ai.job_description import backfill_missing_summaries, simplify_jobs
     from crawler.parsers.linkedin import parse_job_linkedin
+    from crawler.parsers.handshake import parse_job_handshake
     from database.queries import insert_job
 
-# Stop each LinkedIn search URL after this many seconds (paging + job details).
+# Stop each search URL after this many seconds (paging + job details).
 PER_URL_TIME_LIMIT_SEC = 5 * 60
-
 
 def _log_db_target():
     from database.connection import get_connection
@@ -29,7 +30,6 @@ def _log_db_target():
         )
     finally:
         conn.close()
-
 
 def run():
     print("[crawl] run() started", flush=True)
@@ -57,16 +57,38 @@ def run():
         )
         for keyword in keywords
     ]
+    # Handshake public pages use city/role path slugs, not LinkedIn-style query params.
+    # Dallas has no public tech find-jobs role pages; internships + remote jobs do.
+    handshake_urls = [
+        "https://joinhandshake.com/internships/dallas-tx/artificial-intelligence/",
+        "https://joinhandshake.com/internships/dallas-tx/computer-science/",
+        "https://joinhandshake.com/internships/dallas-tx/data-science/",
+        "https://joinhandshake.com/internships/dallas-tx/software-engineering/",
+        "https://joinhandshake.com/internships/dallas-tx/information-technology/",
+        "https://joinhandshake.com/internships/dallas-tx/cybersecurity/",
+        "https://joinhandshake.com/internships/remote/artificial-intelligence/",
+        "https://joinhandshake.com/internships/remote/computer-science/",
+        "https://joinhandshake.com/internships/remote/data-science/",
+        "https://joinhandshake.com/internships/remote/software-engineering/",
+        "https://joinhandshake.com/internships/remote/information-technology/",
+        "https://joinhandshake.com/internships/remote/cybersecurity/",
+    ]
+    urls = linkedin_urls + handshake_urls
 
-    for i, url in enumerate(linkedin_urls, start=1):
+    for i, url in enumerate(urls, start=1):
         print(
-            f"[crawl] fetching URL {i}/{len(linkedin_urls)} "
+            f"[crawl] fetching URL {i}/{len(urls)} "
             f"(up to {PER_URL_TIME_LIMIT_SEC // 60} min): {url}",
             flush=True,
         )
         started = time.monotonic()
         try:
-            new_jobs = parse_job_linkedin(url, time_limit_sec=PER_URL_TIME_LIMIT_SEC)
+            if "linkedin.com" in url:
+                new_jobs = parse_job_linkedin(url, time_limit_sec=PER_URL_TIME_LIMIT_SEC)
+            elif "joinhandshake.com" in url:
+                new_jobs = parse_job_handshake(url, time_limit_sec=PER_URL_TIME_LIMIT_SEC)
+            else:
+                raise ValueError(f"Unknown URL: {url}")
             elapsed = time.monotonic() - started
             print(
                 f"[crawl]   -> parsed {len(new_jobs)} job(s) in {elapsed:.0f}s",
@@ -108,7 +130,6 @@ def run():
         f"[crawl] done: processed={len(jobs)} inserted_or_skipped={inserted} failed={failed}",
         flush=True,
     )
-
 
 if __name__ == "__main__":
     run()

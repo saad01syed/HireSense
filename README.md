@@ -9,7 +9,6 @@
 # TA: JORDAN BLACK
 
 # TODO:
-Fix searching and filtering
 Add more job sources
 Host the database
 Host the website

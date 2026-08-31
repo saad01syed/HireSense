@@ -80,7 +80,16 @@
   padding: 6px 0;
   z-index: 200;
   min-width: 210px;
+  max-height: 320px;
+  overflow-y: auto;
   box-shadow: var(--shadow-md);
+}
+
+.dropdownEmpty {
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: 'DM Sans', sans-serif;
 }
 
 .dropdownItem {
